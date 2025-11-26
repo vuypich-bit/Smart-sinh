@@ -9,7 +9,7 @@ app.use(cors());
 app.use(express.json());
 
 // ប្រើ Model ថ្មីដែលមានស្ថេរភាព
-const MODEL_NAME = 'text-bison-001';
+const MODEL_NAME = 'gemini-pro';
 
 app.get('/', (req, res) => {
     res.send('✅ Server is Running! Ready to solve math.');
