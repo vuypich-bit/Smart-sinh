@@ -34,8 +34,18 @@ async function connectToDatabase() {
         const database = client.db("IntegralCacheDB"); 
         cacheCollection = database.collection("solutions"); 
         console.log("✅ MongoDB Connected Successfully for Global Caching!");
+        
+        // --- IMPORTANT CHECK: ផ្ទៀងផ្ទាត់ Connection សម្រាប់ការ Write ---
+        if (cacheCollection) {
+            console.log("⭐ DB Connection Status: ACTIVE. Ready to Read/Write.");
+        } else {
+             console.error("❌ DB Connection Status: FAILED to get collection object.");
+        }
+        // --- END IMPORTANT CHECK ---
+
     } catch (e) {
-        console.error("❌ MONGODB Connection Failed:", e);
+        // បង្ហាញ Error ពេញលេញប្រសិនបើ Connection បរាជ័យ
+        console.error("❌ MONGODB FATAL Connection Failed:", e.message, e.stack);
         cacheCollection = null; 
     }
 }
@@ -104,23 +114,27 @@ app.post('/api/solve-integral', async (req, res) => {
     try {
         const { prompt } = req.body; 
         
-        // --- IMPORTANT CHANGE: Use Base64 for a robust, identical key ---
-        const normalizedPrompt = prompt.toLowerCase().trim().replace(/\s+/g, ' ');
-
         // 1. បង្កើត Base64 Key សម្រាប់ MongoDB
+        const normalizedPrompt = prompt.toLowerCase().trim().replace(/\s+/g, ' ');
         const cacheKey = Buffer.from(normalizedPrompt).toString('base64');
-        // --- END IMPORTANT CHANGE ---
-
+        
         // --- CACHE READ START ---
         if (cacheCollection) {
-            const cachedResult = await cacheCollection.findOne({ _id: cacheKey });
-            if (cachedResult) {
-                console.log(`[CACHE HIT] Found result for: "${normalizedPrompt.substring(0, 20)}..."`);
-                return res.json({ text: cachedResult.result_text });
+            try {
+                const cachedResult = await cacheCollection.findOne({ _id: cacheKey });
+                if (cachedResult) {
+                    console.log(`[CACHE HIT] Found result for: "${normalizedPrompt.substring(0, 20)}..."`);
+                    return res.json({ text: cachedResult.result_text });
+                }
+            } catch (err) {
+                // ប្រសិនបើ READ បរាជ័យ (អាចដោយសារ Error នៅក្នុង DB)
+                console.error("❌ CACHE READ FAILED:", err.message);
             }
         }
         // --- CACHE READ END ---
-
+        
+        console.log(`[AI CALL] Calling Gemini for: "${normalizedPrompt.substring(0, 20)}..."`);
+        
         // បន្ថែមឃ្លាដើម្បីឱ្យវាដឹងថាត្រូវដោះស្រាយលំហាត់
         const contents = [{ 
             role: 'user', 
@@ -141,10 +155,10 @@ app.post('/api/solve-integral', async (req, res) => {
                     result_text: resultText,
                     timestamp: new Date()
                 });
-                console.log(`[CACHE WRITE] Saved result for: "${normalizedPrompt.substring(0, 20)}..."`);
+                console.log(`[CACHE WRITE SUCCESS] Saved result for: "${normalizedPrompt.substring(0, 20)}..."`);
             } catch (err) {
                 // ភាគច្រើន Error នេះគឺដោយសារតែ Duplicate Key (មិនអីទេ ព្រោះយើងទើបហៅ AI មិញ)
-                console.error("Cache Write Error (Ignoring):", err.message);
+                console.error("❌ CACHE WRITE FAILED (Non-Fatal):", err.message);
             }
         }
         // --- CACHE WRITE END ---
