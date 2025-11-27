@@ -97,37 +97,25 @@ async function generateMathResponse(contents) {
 }
 
 // --------------------------------------------------------------------------------
-// --- 1. MAIN SOLVER ROUTE (/api/solve-integral) WITH CACHE (DEBUG MODE) ---
+// --- 1. MAIN SOLVER ROUTE (/api/solve-integral) WITH CACHE (Base64 Key) ---
 // --------------------------------------------------------------------------------
 
 app.post('/api/solve-integral', async (req, res) => {
     try {
         const { prompt } = req.body; 
         
-        // 1. បង្កើត Cache Key (Robust Key)
-        const cacheKey = prompt
-            .normalize("NFD") 
-            .replace(/[\u0300-\u036f]/g, "") 
-            .toLowerCase()
-            .replace(/[^\w\s\u1780-\u17ff]/g, '')
-            .trim()
-            .replace(/\s+/g, ' ');
+        // --- IMPORTANT CHANGE: Use Base64 for a robust, identical key ---
+        const normalizedPrompt = prompt.toLowerCase().trim().replace(/\s+/g, ' ');
 
-        // --- DEBUG LOG: Cache Status and Key ---
-        console.log(`[DEBUG] Cache Connection Status: ${cacheCollection ? 'ACTIVE' : 'INACTIVE'}`);
-        console.log(`[DEBUG] Generated Cache Key: ${cacheKey}`);
-        // --- END DEBUG LOG ---
+        // 1. បង្កើត Base64 Key សម្រាប់ MongoDB
+        const cacheKey = Buffer.from(normalizedPrompt).toString('base64');
+        // --- END IMPORTANT CHANGE ---
 
         // --- CACHE READ START ---
         if (cacheCollection) {
             const cachedResult = await cacheCollection.findOne({ _id: cacheKey });
-
-            // --- DEBUG LOG: Cache Result ---
-            console.log(`[DEBUG] Cache Read Result: ${cachedResult ? 'HIT' : 'MISS'}`);
-            // --- END DEBUG LOG ---
-
             if (cachedResult) {
-                console.log(`[CACHE HIT] Found result for: "${cacheKey.substring(0, 20)}..."`);
+                console.log(`[CACHE HIT] Found result for: "${normalizedPrompt.substring(0, 20)}..."`);
                 return res.json({ text: cachedResult.result_text });
             }
         }
@@ -153,8 +141,9 @@ app.post('/api/solve-integral', async (req, res) => {
                     result_text: resultText,
                     timestamp: new Date()
                 });
-                console.log(`[CACHE WRITE] Saved result for: "${cacheKey.substring(0, 20)}..."`);
+                console.log(`[CACHE WRITE] Saved result for: "${normalizedPrompt.substring(0, 20)}..."`);
             } catch (err) {
+                // ភាគច្រើន Error នេះគឺដោយសារតែ Duplicate Key (មិនអីទេ ព្រោះយើងទើបហៅ AI មិញ)
                 console.error("Cache Write Error (Ignoring):", err.message);
             }
         }
