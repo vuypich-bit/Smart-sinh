@@ -1,4 +1,4 @@
-// index.js (កូដចុងក្រោយ: ជំនួយការគណិតវិទ្យាឆ្លាតវៃជាមួយ Rate Limiting)
+// index.js (កូដចុងក្រោយ: ជំនួយការគណិតវិទ្យាឆ្លាតវៃជាមួយ Rate Limiting និង Whitelisting)
 
 const express = require('express');
 const cors = require('cors');
@@ -16,24 +16,46 @@ const app = express();
 const PORT = process.env.PORT || 10000; 
 
 app.use(cors());
+// ត្រូវប្រើ 'trust proxy' ដើម្បីទទួលបាន IP ពិតប្រាកដពី Render/Proxy
+app.set('trust proxy', 1); 
 app.use(express.json());
 
 // --- Configuration ---
 const MODEL_NAME = 'gemini-2.5-flash';
 
 // --- 🛑 RATE LIMITING SETUP ---
+
+// 1. ទាញយក IP ដែលបាន Whitelist ពី Environment Variable (ឧ. "123.45.67.89,45.67.89.01")
+const WHITELISTED_IPS_STRING = process.env.WHITELISTED_IPS || "";
+const WHITELISTED_IPS = WHITELISTED_IPS_STRING.split(',').map(ip => ip.trim()).filter(ip => ip.length > 0);
+
+if (WHITELISTED_IPS.length > 0) {
+    console.log(`✅ Whitelisting active for IPs: ${WHITELISTED_IPS.join(', ')}`);
+} else {
+    console.log("⚠️ No IPs found in WHITELISTED_IPS environment variable.");
+}
+
+// គោលការណ៍សម្រាប់អ្នកប្រើប្រាស់ផ្សេងទៀត: 5 Requests ក្នុង 30 នាទី
 const limiter = rateLimit({
-	windowMs: 10 * 1000, // 10 វិនាទី
-	max: 3, // អនុញ្ញាតអោយមាន 3 Requests ក្នុង 10 វិនាទី ពី IP តែមួយ
+	windowMs: 30 * 60 * 1000, // 30 នាទី (1,800,000 ms)
+	max: 5, // អនុញ្ញាតអោយមាន 5 Requests ក្នុង 30 នាទី ពី IP តែមួយ
+    
+    // 2. មុខងារ Skip: រំលងការកំណត់ល្បឿនប្រសិនបើ IP ត្រូវបាន Whitelist
+    skip: (req, res) => {
+        // req.ip នឹងផ្តល់ IP ពិតប្រាកដដោយសារតែ app.set('trust proxy', 1);
+        const clientIp = req.ip; 
+        return WHITELISTED_IPS.includes(clientIp);
+    },
+
     message: async (req, res) => {
-        // ផ្ញើសារបដិសេធជា JSON
+        // សារឆ្លើយតបនៅពេល Rate Limit ត្រូវបានវាយប្រហារ (Status 429)
         res.status(429).json({ 
-            error: "Too many requests. Please try again after 10 seconds.",
-            khmer_message: "សំណើច្រើនពេក។ សូមព្យាយាមម្តងទៀតបន្ទាប់ពី ១០ វិនាទី។"
+            error: "Quota exceeded (5 requests per 30 minutes). Please wait 30 minutes.",
+            khmer_message: "សំណើច្រើនពេក។ អ្នកត្រូវបានកំណត់ត្រឹម ៥ ដងក្នុងរយៈពេល ៣០ នាទី។ សូមរង់ចាំ ៣០ នាទីមុននឹងប្រើម្តងទៀត។"
         });
     },
-	standardHeaders: true, // ប្រើ Rate Limit Headers
-	legacyHeaders: false, // បិទ Legacy Headers
+	standardHeaders: true, 
+	legacyHeaders: false, 
 });
 
 // អនុវត្ត Rate Limiter ទៅលើ APIs សំខាន់ៗទាំងអស់ (Solve និង Chat)
@@ -41,15 +63,14 @@ app.use("/api/", limiter);
 
 
 // --- 🧠 MONGODB CONNECTION SETUP ---
-// ប្រើ URI ថ្មីពី Cluster ថ្មី (cluster0.chyfb9f)
 const uri = "mongodb+srv://testuser:testpass@cluster0.chyfb9f.mongodb.net/?appName=Cluster0"; 
 
 const client = new MongoClient(uri);
 
 let cacheCollection; 
 
-// ភ្ជាប់ទៅ Database
 async function connectToDatabase() {
+    // យើងមិនបន្តការតភ្ជាប់ទេ ប្រសិនបើ URI មិនត្រូវបានកំណត់
     if (!uri) {
         console.warn("⚠️ MONGODB_URI មិនត្រូវបានកំណត់។ Cache ត្រូវបានបិទ។");
         return false;
@@ -236,4 +257,4 @@ async function startServer() {
     });
 }
 
-startSer
+startServer();
