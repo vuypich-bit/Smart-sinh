@@ -1,10 +1,13 @@
-// index.js (កូដចុងក្រោយ: ជំនួយការគណិតវិទ្យាឆ្លាតវៃ)
+// index.js (កូដចុងក្រោយ: ជំនួយការគណិតវិទ្យាឆ្លាតវៃជាមួយ Rate Limiting)
 
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
 
-// 1. IMPORT MONGODB DRIVER 
+// 1. IMPORT RATE LIMITER
+const rateLimit = require('express-rate-limit');
+
+// 2. IMPORT MONGODB DRIVER 
 const { MongoClient } = require('mongodb');
 
 dotenv.config();
@@ -18,9 +21,27 @@ app.use(express.json());
 // --- Configuration ---
 const MODEL_NAME = 'gemini-2.5-flash';
 
+// --- 🛑 RATE LIMITING SETUP ---
+const limiter = rateLimit({
+	windowMs: 10 * 1000, // 10 វិនាទី
+	max: 3, // អនុញ្ញាតអោយមាន 3 Requests ក្នុង 10 វិនាទី ពី IP តែមួយ
+    message: async (req, res) => {
+        // ផ្ញើសារបដិសេធជា JSON
+        res.status(429).json({ 
+            error: "Too many requests. Please try again after 10 seconds.",
+            khmer_message: "សំណើច្រើនពេក។ សូមព្យាយាមម្តងទៀតបន្ទាប់ពី ១០ វិនាទី។"
+        });
+    },
+	standardHeaders: true, // ប្រើ Rate Limit Headers
+	legacyHeaders: false, // បិទ Legacy Headers
+});
+
+// អនុវត្ត Rate Limiter ទៅលើ APIs សំខាន់ៗទាំងអស់ (Solve និង Chat)
+app.use("/api/", limiter);
+
+
 // --- 🧠 MONGODB CONNECTION SETUP ---
-// 🚨🚨🚨 FINAL FIX: ប្រើ URI ថ្មីពី Cluster ថ្មី (cluster0.chyfb9f) 🚨🚨🚨
-// User: testuser, Pass: testpass
+// ប្រើ URI ថ្មីពី Cluster ថ្មី (cluster0.chyfb9f)
 const uri = "mongodb+srv://testuser:testpass@cluster0.chyfb9f.mongodb.net/?appName=Cluster0"; 
 
 const client = new MongoClient(uri);
@@ -46,7 +67,6 @@ async function connectToDatabase() {
         console.log("✅ MongoDB Connection ជោគជ័យ។ Cache រួចរាល់។");
         return true;
     } catch (e) {
-        // ⚠️ បើនៅតែបរាជ័យ នោះមានន័យថា Network Access (0.0.0.0/0) មិនទាន់ដំណើរការល្អទេ
         console.error("❌ MONGODB FATAL Connection បរាជ័យ។ សូមពិនិត្យ Network Access (0.0.0.0/0) ក្នុង Atlas", e.message);
         cacheCollection = null; 
         return false;
@@ -77,7 +97,6 @@ const MATH_ASSISTANT_PERSONA = {
 
 // Health Check Route
 app.get('/', (req, res) => {
-    // បង្ហាញสถานៈច្បាស់លាស់នៅលើ Health Check
     const dbStatus = cacheCollection ? "Connected ✅ (Caching Active)" : "Disconnected ❌ (Caching Disabled)";
     res.send(`✅ Math Assistant (gemini-2.5-flash) is Ready! DB Cache Status: ${dbStatus}`);
 });
@@ -86,7 +105,6 @@ app.get('/', (req, res) => {
 // --- HELPER FUNCTION FOR API CALLS (unchanged) ---
 // --------------------------------------------------------------------------------
 async function generateMathResponse(contents) {
-    // ⚠️ ត្រូវតែអាន Key ពី Environment Variable (GEMINI_API_KEY)
     const apiKey = process.env.GEMINI_API_KEY; 
     if (!apiKey) throw new Error("API Key មិនត្រូវបានកំណត់។ សូមកំណត់ GEMINI_API_KEY នៅក្នុង Render Environment.");
 
@@ -111,7 +129,7 @@ async function generateMathResponse(contents) {
 }
 
 // --------------------------------------------------------------------------------
-// --- 1. MAIN SOLVER ROUTE (/api/solve-integral) WITH CACHE (unchanged logic) ---
+// --- 1. MAIN SOLVER ROUTE (/api/solve-integral) WITH CACHE ---
 // --------------------------------------------------------------------------------
 
 app.post('/api/solve-integral', async (req, res) => {
@@ -177,7 +195,7 @@ app.post('/api/solve-integral', async (req, res) => {
 });
 
 // --------------------------------------------------------------------------------
-// --- 2. CHAT ROUTE (/api/chat) (unchanged) ---
+// --- 2. CHAT ROUTE (/api/chat) ---
 // --------------------------------------------------------------------------------
 
 app.post('/api/chat', async (req, res) => {
