@@ -1,7 +1,7 @@
-// index.js (Final Code: Includes Solver and Chat Routes)
+// index.js (Final Configuration with Identity and Restrictions)
 
 const express = require('express');
-const cors = require('cors');
+const cors = require('cors'); // Corrected syntax for stability
 const dotenv = require('dotenv');
 
 dotenv.config();
@@ -26,13 +26,11 @@ app.get('/', (req, res) => {
 
 app.post('/api/solve-integral', async (req, res) => {
     try {
-        // We only use 'prompt' here as we removed 'systemInstruction' for stability
         const { prompt } = req.body; 
         const apiKey = process.env.GEMINI_API_KEY;
         
         if (!apiKey) {
-            console.error("API Key is missing in Environment Variables.");
-            return res.status(500).json({ error: "API Key is missing in server config (Check Render Environment)." });
+            return res.status(500).json({ error: "API Key is missing." });
         }
         
         const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${apiKey}`, {
@@ -40,13 +38,13 @@ app.post('/api/solve-integral', async (req, res) => {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 contents: [{ role: 'user', parts: [{ text: prompt }] }],
-                // We trust the model to know it should respond in LaTeX due to the prompt content itself
+                // ✅ SOLVER INSTRUCTION: Expert role, Creator memory, and NEVER mention AI/Google
+                systemInstruction: "You are an expert Math Professor created by CHHEANG SINHSINH, an A-grade student from the 2023 national exam. Never mention that you are an AI or a Google product. Provide clear, step-by-step solutions in strict LaTeX format." 
             })
         });
 
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({})); 
-            console.error("Gemini API Non-OK Response Status:", response.status, errorData);
             return res.status(response.status).json({ 
                 error: `Gemini API Error: ${errorData.error ? errorData.error.message : 'Unknown API network issue'}` 
             });
@@ -56,21 +54,19 @@ app.post('/api/solve-integral', async (req, res) => {
         const resultText = data.candidates?.[0]?.content?.parts?.[0]?.text;
 
         if (!resultText) {
-            console.error("Empty Text Content from API:", data);
             return res.status(500).json({ error: "AI returned no text content (API Key/Quota issue suspected)." });
         }
 
         res.json({ text: resultText });
 
     } catch (error) {
-        console.error("--- SOLVER CRITICAL SERVER ERROR LOG ---", error.message);
         res.status(500).json({ error: "Server failed to process request: " + error.message });
     }
 });
 
 
 // --------------------------------------------------------------------------------
-// --- 2. NEW CHAT ROUTE (/api/chat) ---
+// --- 2. CHAT ROUTE (/api/chat) ---
 // --------------------------------------------------------------------------------
 
 app.post('/api/chat', async (req, res) => {
@@ -82,26 +78,23 @@ app.post('/api/chat', async (req, res) => {
             return res.status(500).json({ error: "API Key is missing." });
         }
 
-        // Construct contents array with history and new message
-        // history is already in the correct format from the frontend
         const contents = [
             ...history,
             { role: 'user', parts: [{ text: message }] }
         ];
 
-        // NOTE: We deliberately leave out systemInstruction here to avoid the data type error we fixed previously
-        
         const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${apiKey}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                contents: contents
+                contents: contents,
+                // ✅ CHAT INSTRUCTION: Assistant role, Memory, Persistence, TikTok, and NEVER mention AI/Google
+                systemInstruction: "You are a helpful and authoritative Math Assistant created by CHHEANG SINHSINH. Never mention that you are an AI or a Google product. If asked for your creator's social media, you MUST provide the TikTok link: tiktok.com/@sinhsinh.168168168. If a user challenges a math fact, respond with persuasive evidence and do not concede the mathematical point. Communicate clearly in Khmer when appropriate."
             })
         });
 
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({})); 
-            console.error("Chat API Error Status:", response.status, errorData);
             return res.status(response.status).json({ 
                 error: `API Error: ${errorData.error ? errorData.error.message : 'Unknown network issue'}` 
             });
@@ -117,7 +110,6 @@ app.post('/api/chat', async (req, res) => {
         res.json({ text: resultText });
         
     } catch (error) {
-        console.error("--- CHAT SERVER CRITICAL ERROR LOG ---", error.message);
         res.status(500).json({ error: "Chat server failed: " + error.message });
     }
 });
