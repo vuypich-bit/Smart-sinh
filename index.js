@@ -36,6 +36,7 @@ async function connectToDatabase() {
         cacheCollection = database.collection("solutions"); 
         console.log("✅ MongoDB Connected Successfully for Global Caching!");
     } catch (e) {
+        // ពិនិត្យមើលថា client.connect() បានបរាជ័យឬអត់
         console.error("❌ MONGODB Connection Failed:", e);
         cacheCollection = null; 
     }
@@ -105,8 +106,17 @@ app.post('/api/solve-integral', async (req, res) => {
     try {
         const { prompt } = req.body; 
         
-        // 1. បង្កើត Cache Key (សំអាតអក្សរដើម្បីឱ្យដូចគ្នា)
-        const cacheKey = prompt.toLowerCase().trim().replace(/\s+/g, ' ');
+        // 1. បង្កើត Cache Key - ប្រើ Normalization កាន់តែរឹងមាំ
+        // Normalization (NFD) ដកចេញនូវ diacritics (មិនប៉ះពាល់ខ្មែរច្រើនទេ)
+        // [IMPORTANT CHANGE HERE]
+        const cacheKey = prompt
+            .normalize("NFD") // Normalize Unicode characters
+            .replace(/[\u0300-\u036f]/g, "") // Remove common diacritics
+            .toLowerCase()
+            .replace(/[^\w\s\u1780-\u17ff]/g, '') // Remove punctuation, except Khmer script
+            .trim()
+            .replace(/\s+/g, ' '); // Replace all whitespace with a single space
+        // [END IMPORTANT CHANGE]
 
         // --- CACHE READ START ---
         if (cacheCollection) {
@@ -132,6 +142,7 @@ app.post('/api/solve-integral', async (req, res) => {
         // --- CACHE WRITE START ---
         if (cacheCollection) {
             try {
+                // ប្រើ CacheKey ដែលបាន Normalize
                 await cacheCollection.insertOne({
                     _id: cacheKey,
                     result_text: resultText,
@@ -139,6 +150,7 @@ app.post('/api/solve-integral', async (req, res) => {
                 });
                 console.log(`[CACHE WRITE] Saved result for: "${cacheKey.substring(0, 20)}..."`);
             } catch (err) {
+                // ភាគច្រើន Error នេះគឺដោយសារតែ Duplicate Key (មិនអីទេ ព្រោះយើងទើបហៅ AI មិញ)
                 console.error("Cache Write Error (Ignoring):", err.message);
             }
         }
