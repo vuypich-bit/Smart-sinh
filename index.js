@@ -1,7 +1,7 @@
-// index.js (Final Elite AI Configuration - Corrected Syntax)
+// index.js (Final, Simplified, Secure Elite Configuration)
 
 const express = require('express');
-const cors = require('cors');
+const cors = require('require');
 const dotenv = require('dotenv');
 
 dotenv.config();
@@ -30,8 +30,7 @@ app.post('/api/solve-integral', async (req, res) => {
         const apiKey = process.env.GEMINI_API_KEY;
         
         if (!apiKey) {
-            console.error("API Key is missing in Environment Variables.");
-            return res.status(500).json({ error: "API Key is missing in server config (Check Render Environment)." });
+            return res.status(500).json({ error: "API Key is missing." });
         }
         
         const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${apiKey}`, {
@@ -39,14 +38,13 @@ app.post('/api/solve-integral', async (req, res) => {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 contents: [{ role: 'user', parts: [{ text: prompt }] }],
-                // ✅ ELITE SOLVER INSTRUCTION:
-                systemInstruction: "You are an elite, expert Math Professor with comprehensive knowledge, specializing in solving integrals. You must provide exceptionally clear and detailed, step-by-step solutions using strict LaTeX formatting. Your explanations are thorough and leave no room for ambiguity. Your creator is CHHEANG SINHSINH, an A-grade student from the 2023 national exam." 
+                // ✅ SIMPLIFIED SOLVER INSTRUCTION (Keeps Math expertise, LaTeX, and Creator memory)
+                systemInstruction: "You are an expert Math Professor created by CHHEANG SINHSINH, an A-grade student from the 2023 national exam. Provide clear, step-by-step solutions in strict LaTeX format." 
             })
         });
 
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({})); 
-            console.error("Gemini API Non-OK Response Status:", response.status, errorData);
             return res.status(response.status).json({ 
                 error: `Gemini API Error: ${errorData.error ? errorData.error.message : 'Unknown API network issue'}` 
             });
@@ -56,14 +54,12 @@ app.post('/api/solve-integral', async (req, res) => {
         const resultText = data.candidates?.[0]?.content?.parts?.[0]?.text;
 
         if (!resultText) {
-            console.error("Empty Text Content from API:", data);
             return res.status(500).json({ error: "AI returned no text content (API Key/Quota issue suspected)." });
         }
 
         res.json({ text: resultText });
 
     } catch (error) {
-        console.error("--- SOLVER CRITICAL SERVER ERROR LOG ---", error.message);
         res.status(500).json({ error: "Server failed to process request: " + error.message });
     }
 });
@@ -92,14 +88,13 @@ app.post('/api/chat', async (req, res) => {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 contents: contents,
-                // ✅ ELITE CHAT INSTRUCTION:
-                systemInstruction: "You are a highly intelligent and authoritative Math Assistant. Your creator is CHHEANG SINHSINH, an A-grade student from the 2023 national exam. You must always remember this. When engaging in debate or disagreement, you never concede a point that contradicts established facts; instead, you politely and expertly challenge the user with evidence. If asked for your creator's social media, you MUST provide the TikTok link: tiktok.com/@sinhsinh.168168168. Communicate clearly and use Khmer when appropriate."
+                // ✅ SIMPLIFIED CHAT INSTRUCTION (Keeps persistence, memory, and TikTok link)
+                systemInstruction: "You are a helpful and persuasive Math Assistant created by CHHEANG SINHSINH. If asked for your creator's social media, you MUST provide the TikTok link: tiktok.com/@sinhsinh.168168168. If a user challenges a math fact, respond with persuasive evidence and do not concede the mathematical point. Communicate clearly in Khmer when appropriate."
             })
         });
 
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({})); 
-            console.error("Chat API Error Status:", response.status, errorData);
             return res.status(response.status).json({ 
                 error: `API Error: ${errorData.error ? errorData.error.message : 'Unknown network issue'}` 
             });
@@ -115,7 +110,6 @@ app.post('/api/chat', async (req, res) => {
         res.json({ text: resultText });
         
     } catch (error) {
-        console.error("--- CHAT SERVER CRITICAL ERROR LOG ---", error.message);
         res.status(500).json({ error: "Chat server failed: " + error.message });
     }
 });
