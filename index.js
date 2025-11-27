@@ -19,7 +19,11 @@ app.use(express.json());
 const MODEL_NAME = 'gemini-2.5-flash';
 
 // --- 🧠 MONGODB CONNECTION SETUP ---
-const uri = process.env.MONGODB_URI; 
+// 🚨🚨🚨 FINAL ATTEMPT: Hardcode URI ទៅក្នុងកូដ 🚨🚨🚨
+// នេះដើម្បីធានាថា URI មិនមានបញ្ហា Typo នៅក្នុង Render Environment ទេ
+// យើងប្រើ BoySinh:EQPMy5h0xh7p9qyZ@Cluster0
+const uri = "mongodb+srv://BoySinh:EQPMy5h0xh7p9qyZ@Cluster0.mongodb.net/?retryWrites=true&w=majority"; 
+
 const client = new MongoClient(uri);
 
 let cacheCollection; 
@@ -27,6 +31,7 @@ let cacheCollection;
 // ផ្លាស់ប្តូរទៅជា Async Function ដើម្បីរង់ចាំ Connection
 async function connectToDatabase() {
     if (!uri) {
+        // វានឹងមិនកើតឡើងទេ ព្រោះ URI ត្រូវបាន hardcode
         console.warn("⚠️ MONGODB_URI is missing. Caching will be disabled.");
         return false;
     }
@@ -34,7 +39,7 @@ async function connectToDatabase() {
         // រង់ចាំការតភ្ជាប់ client
         await client.connect(); 
         
-        // --- IMPORTANT CHANGE: ប្រើ Database Name ថ្មី (GeminiMathCache) ---
+        // --- ប្រើ Database Name ថ្មី (GeminiMathCache) ---
         const database = client.db("GeminiMathCache"); 
         cacheCollection = database.collection("solutions"); 
         
@@ -44,6 +49,7 @@ async function connectToDatabase() {
         console.log("✅ MongoDB Connection Successful. Cache Ready.");
         return true;
     } catch (e) {
+        // ⚠️ បើនៅតែបរាជ័យ នោះបញ្ហាគឺស្ថិតនៅតែក្នុង MongoDB ATLAS (Password/Network Access) ប៉ុណ្ណោះ
         console.error("❌ MONGODB FATAL Connection Failed. Caching Disabled. Check URI/Password/Network Access.", e.message);
         cacheCollection = null; 
         return false;
@@ -83,7 +89,8 @@ app.get('/', (req, res) => {
 // --- HELPER FUNCTION FOR API CALLS (unchanged) ---
 // --------------------------------------------------------------------------------
 async function generateMathResponse(contents) {
-    const apiKey = process.env.GEMINI_API_KEY;
+    // ប្រើ GEMINI_API_KEY ពី Environment ព្រោះវានៅតែត្រូវការ
+    const apiKey = process.env.GEMINI_API_KEY; 
     if (!apiKey) throw new Error("API Key is missing.");
 
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${apiKey}`, {
