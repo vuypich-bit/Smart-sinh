@@ -19,10 +19,9 @@ app.use(express.json());
 const MODEL_NAME = 'gemini-2.5-flash';
 
 // --- 🧠 MONGODB CONNECTION SETUP ---
-// 🚨🚨🚨 FINAL ATTEMPT: Hardcode URI ទៅក្នុងកូដ 🚨🚨🚨
-// នេះដើម្បីធានាថា URI មិនមានបញ្ហា Typo នៅក្នុង Render Environment ទេ
-// យើងប្រើ BoySinh:EQPMy5h0xh7p9qyZ@Cluster0
-const uri = "mongodb+srv://BoySinh:EQPMy5h0xh7p9qyZ@Cluster0.mongodb.net/?retryWrites=true&w=majority"; 
+// 🚨🚨🚨 NEW FIX: Hardcode URI ជាមួយ User/Password ថ្មី (newuser:12345) 🚨🚨🚨
+// នេះដើម្បីដោះស្រាយបញ្ហា URI/Password ដែលនៅសល់
+const uri = "mongodb+srv://newuser:12345@Cluster0.mongodb.net/?retryWrites=true&w=majority"; 
 
 const client = new MongoClient(uri);
 
@@ -31,26 +30,21 @@ let cacheCollection;
 // ផ្លាស់ប្តូរទៅជា Async Function ដើម្បីរង់ចាំ Connection
 async function connectToDatabase() {
     if (!uri) {
-        // វានឹងមិនកើតឡើងទេ ព្រោះ URI ត្រូវបាន hardcode
         console.warn("⚠️ MONGODB_URI is missing. Caching will be disabled.");
         return false;
     }
     try {
-        // រង់ចាំការតភ្ជាប់ client
         await client.connect(); 
-        
-        // --- ប្រើ Database Name ថ្មី (GeminiMathCache) ---
         const database = client.db("GeminiMathCache"); 
         cacheCollection = database.collection("solutions"); 
         
-        // ផ្ទៀងផ្ទាត់ការតភ្ជាប់
         await cacheCollection.estimatedDocumentCount();
 
         console.log("✅ MongoDB Connection Successful. Cache Ready.");
         return true;
     } catch (e) {
-        // ⚠️ បើនៅតែបរាជ័យ នោះបញ្ហាគឺស្ថិតនៅតែក្នុង MongoDB ATLAS (Password/Network Access) ប៉ុណ្ណោះ
-        console.error("❌ MONGODB FATAL Connection Failed. Caching Disabled. Check URI/Password/Network Access.", e.message);
+        // ⚠️ បើនៅតែបរាជ័យ នោះបញ្ហាគឺស្ថិតនៅតែក្នុង MongoDB ATLAS Network Access តែមួយគត់
+        console.error("❌ MONGODB FATAL Connection Failed. Please double-check Network Access (0.0.0.0/0).", e.message);
         cacheCollection = null; 
         return false;
     }
@@ -211,7 +205,6 @@ app.post('/api/chat', async (req, res) => {
 async function startServer() {
     const isDbConnected = await connectToDatabase();
     
-    // បើ DB Connection បរាជ័យ នោះវានៅតែអាចរត់បាន ប៉ុន្តែគ្មាន Cache ទេ
     if (!isDbConnected) {
         console.warn("Server starting without MongoDB caching.");
     }
