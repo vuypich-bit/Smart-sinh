@@ -1,8 +1,11 @@
-// index.js (Final Code: Smart Math Assistant on gemini-2.5-flash)
+// index.js (Final Code: Smart Math Assistant with Global MongoDB Cache)
 
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
+
+// 1. IMPORT MONGODB DRIVER (ធានាថា package.json មាន "mongodb")
+const { MongoClient } = require('mongodb');
 
 dotenv.config();
 
@@ -13,10 +16,33 @@ app.use(cors());
 app.use(express.json());
 
 // --- Configuration ---
-// ប្រើឈ្មោះ Model តាមដែលអ្នកបានបញ្ជាក់
 const MODEL_NAME = 'gemini-2.5-flash';
 
-// --- 🧠 THE BRAIN: SYSTEM INSTRUCTION (ការកំណត់ចរិតលក្ខណៈ) ---
+// --- 🧠 MONGODB CONNECTION SETUP ---
+// ទាញយក URI ពី Environment Variable នៅលើ Render
+const uri = process.env.MONGODB_URI; 
+const client = new MongoClient(uri);
+
+let cacheCollection; // អថេរសម្រាប់ទុក Collection Cache
+
+async function connectToDatabase() {
+    try {
+        if (!uri) {
+            console.warn("⚠️ MONGODB_URI is missing. Caching will be disabled.");
+            return;
+        }
+        await client.connect();
+        const database = client.db("IntegralCacheDB"); 
+        cacheCollection = database.collection("solutions"); 
+        console.log("✅ MongoDB Connected Successfully for Global Caching!");
+    } catch (e) {
+        console.error("❌ MONGODB Connection Failed:", e);
+        cacheCollection = null; 
+    }
+}
+connectToDatabase(); 
+
+// --- 🧠 THE BRAIN: SYSTEM INSTRUCTION ---
 const MATH_ASSISTANT_PERSONA = {
     role: "user", 
     parts: [{ 
@@ -40,7 +66,8 @@ const MATH_ASSISTANT_PERSONA = {
 
 // Health Check Route
 app.get('/', (req, res) => {
-    res.send('✅ Math Assistant (gemini-2.5-flash) is Ready!');
+    const dbStatus = cacheCollection ? "Connected ✅" : "Disconnected ❌";
+    res.send(`✅ Math Assistant (gemini-2.5-flash) is Ready! DB Cache: ${dbStatus}`);
 });
 
 // --------------------------------------------------------------------------------
@@ -50,7 +77,6 @@ async function generateMathResponse(contents) {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) throw new Error("API Key is missing.");
 
-    // ចំណាំ៖ systemInstruction ត្រូវបានដាក់ក្នុង body សម្រាប់ v1beta
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${apiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -72,22 +98,52 @@ async function generateMathResponse(contents) {
 }
 
 // --------------------------------------------------------------------------------
-// --- 1. MAIN SOLVER ROUTE (/api/solve-integral) ---
+// --- 1. MAIN SOLVER ROUTE (/api/solve-integral) WITH CACHE ---
 // --------------------------------------------------------------------------------
 
 app.post('/api/solve-integral', async (req, res) => {
     try {
         const { prompt } = req.body; 
         
+        // 1. បង្កើត Cache Key (សំអាតអក្សរដើម្បីឱ្យដូចគ្នា)
+        const cacheKey = prompt.toLowerCase().trim().replace(/\s+/g, ' ');
+
+        // --- CACHE READ START ---
+        if (cacheCollection) {
+            const cachedResult = await cacheCollection.findOne({ _id: cacheKey });
+            if (cachedResult) {
+                console.log(`[CACHE HIT] Found result for: "${cacheKey.substring(0, 20)}..."`);
+                return res.json({ text: cachedResult.result_text });
+            }
+        }
+        // --- CACHE READ END ---
+
         // បន្ថែមឃ្លាដើម្បីឱ្យវាដឹងថាត្រូវដោះស្រាយលំហាត់
         const contents = [{ 
             role: 'user', 
             parts: [{ text: `Solve this math problem in detail: ${prompt}` }] 
         }];
 
+        // 2. ហៅ AI (ប្រសិនបើគ្មានក្នុង Cache)
         const resultText = await generateMathResponse(contents);
 
         if (!resultText) return res.status(500).json({ error: "AI returned no content." });
+
+        // --- CACHE WRITE START ---
+        if (cacheCollection) {
+            try {
+                await cacheCollection.insertOne({
+                    _id: cacheKey,
+                    result_text: resultText,
+                    timestamp: new Date()
+                });
+                console.log(`[CACHE WRITE] Saved result for: "${cacheKey.substring(0, 20)}..."`);
+            } catch (err) {
+                console.error("Cache Write Error (Ignoring):", err.message);
+            }
+        }
+        // --- CACHE WRITE END ---
+
         res.json({ text: resultText });
 
     } catch (error) {
