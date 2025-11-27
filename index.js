@@ -1,9 +1,8 @@
-// index.js (Final Version: Smart Math Assistant + Tracking)
+// index.js (Final Code: Smart Math Assistant on gemini-2.5-flash)
 
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
-const morgan = require('morgan'); // ផ្នែកសម្រាប់តាមដានអ្នកប្រើប្រាស់ (Log)
 
 dotenv.config();
 
@@ -13,14 +12,11 @@ const PORT = process.env.PORT || 10000;
 app.use(cors());
 app.use(express.json());
 
-// ដាក់ឱ្យដំណើរការការតាមដាន (នឹងបង្ហាញ IP និង Route ក្នុង Termux)
-app.use(morgan('combined')); 
-
 // --- Configuration ---
+// ប្រើឈ្មោះ Model តាមដែលអ្នកបានបញ្ជាក់
 const MODEL_NAME = 'gemini-2.5-flash';
 
-// --- 🧠 THE BRAIN: SYSTEM INSTRUCTION (កំណត់ចរិតលក្ខណៈ) ---
-// នេះជាកន្លែងធ្វើឱ្យវាឆ្លាត មិនចេះចាញ់ និងមិនសារភាពថាជា AI
+// --- 🧠 THE BRAIN: SYSTEM INSTRUCTION (ការកំណត់ចរិតលក្ខណៈ) ---
 const MATH_ASSISTANT_PERSONA = {
     role: "user", 
     parts: [{ 
@@ -44,7 +40,7 @@ const MATH_ASSISTANT_PERSONA = {
 
 // Health Check Route
 app.get('/', (req, res) => {
-    res.send('✅ Math Assistant Server is Running!');
+    res.send('✅ Math Assistant (gemini-2.5-flash) is Ready!');
 });
 
 // --------------------------------------------------------------------------------
@@ -54,7 +50,7 @@ async function generateMathResponse(contents) {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) throw new Error("API Key is missing.");
 
-    // បញ្ជូន System Instruction ទៅជាមួយ Request ដើម្បីកំណត់ចរិត
+    // ចំណាំ៖ systemInstruction ត្រូវបានដាក់ក្នុង body សម្រាប់ v1beta
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${apiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -68,7 +64,7 @@ async function generateMathResponse(contents) {
 
     if (!response.ok) {
         const errorData = await response.json().catch(() => ({})); 
-        throw new Error(`Gemini API Error: ${errorData.error ? errorData.error.message : 'Unknown error'}`);
+        throw new Error(`Gemini API Error (${response.status}): ${errorData.error ? errorData.error.message : 'Unknown error'}`);
     }
 
     const data = await response.json();
@@ -83,7 +79,7 @@ app.post('/api/solve-integral', async (req, res) => {
     try {
         const { prompt } = req.body; 
         
-        // បញ្ជាក់ឱ្យច្បាស់ថាត្រូវដោះស្រាយលំហាត់
+        // បន្ថែមឃ្លាដើម្បីឱ្យវាដឹងថាត្រូវដោះស្រាយលំហាត់
         const contents = [{ 
             role: 'user', 
             parts: [{ text: `Solve this math problem in detail: ${prompt}` }] 
