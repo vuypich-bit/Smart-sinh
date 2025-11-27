@@ -1,4 +1,4 @@
-// index.js (Final Code: Smart Math Assistant with Global MongoDB Cache)
+// index.js (Final Code: Smart Math Assistant with Guaranteed MongoDB Connection)
 
 const express = require('express');
 const cors = require('cors');
@@ -24,32 +24,29 @@ const client = new MongoClient(uri);
 
 let cacheCollection; 
 
+// ផ្លាស់ប្តូរទៅជា Async Function ដើម្បីរង់ចាំ Connection
 async function connectToDatabase() {
+    if (!uri) {
+        console.warn("⚠️ MONGODB_URI is missing. Caching will be disabled.");
+        return false;
+    }
     try {
-        if (!uri) {
-            console.warn("⚠️ MONGODB_URI is missing. Caching will be disabled.");
-            return;
-        }
-        await client.connect();
+        // រង់ចាំការតភ្ជាប់ client
+        await client.connect(); 
         const database = client.db("IntegralCacheDB"); 
         cacheCollection = database.collection("solutions"); 
-        console.log("✅ MongoDB Connected Successfully for Global Caching!");
         
-        // --- IMPORTANT CHECK: ផ្ទៀងផ្ទាត់ Connection សម្រាប់ការ Write ---
-        if (cacheCollection) {
-            console.log("⭐ DB Connection Status: ACTIVE. Ready to Read/Write.");
-        } else {
-             console.error("❌ DB Connection Status: FAILED to get collection object.");
-        }
-        // --- END IMPORTANT CHECK ---
+        // ផ្ទៀងផ្ទាត់ការតភ្ជាប់ដោយការព្យាយាម Write តូចមួយ (Optional but good)
+        await cacheCollection.estimatedDocumentCount();
 
+        console.log("✅ MongoDB Connection Successful. Cache Ready.");
+        return true;
     } catch (e) {
-        // បង្ហាញ Error ពេញលេញប្រសិនបើ Connection បរាជ័យ
-        console.error("❌ MONGODB FATAL Connection Failed:", e.message, e.stack);
+        console.error("❌ MONGODB FATAL Connection Failed. Caching Disabled.", e.message);
         cacheCollection = null; 
+        return false;
     }
 }
-connectToDatabase(); 
 
 // --- 🧠 THE BRAIN: SYSTEM INSTRUCTION ---
 const MATH_ASSISTANT_PERSONA = {
@@ -75,7 +72,7 @@ const MATH_ASSISTANT_PERSONA = {
 
 // Health Check Route
 app.get('/', (req, res) => {
-    const dbStatus = cacheCollection ? "Connected ✅" : "Disconnected ❌";
+    const dbStatus = cacheCollection ? "Connected ✅" : "Disconnected ❌ (Check URI/Firewall)";
     res.send(`✅ Math Assistant (gemini-2.5-flash) is Ready! DB Cache: ${dbStatus}`);
 });
 
@@ -127,7 +124,6 @@ app.post('/api/solve-integral', async (req, res) => {
                     return res.json({ text: cachedResult.result_text });
                 }
             } catch (err) {
-                // ប្រសិនបើ READ បរាជ័យ (អាចដោយសារ Error នៅក្នុង DB)
                 console.error("❌ CACHE READ FAILED:", err.message);
             }
         }
@@ -157,8 +153,10 @@ app.post('/api/solve-integral', async (req, res) => {
                 });
                 console.log(`[CACHE WRITE SUCCESS] Saved result for: "${normalizedPrompt.substring(0, 20)}..."`);
             } catch (err) {
-                // ភាគច្រើន Error នេះគឺដោយសារតែ Duplicate Key (មិនអីទេ ព្រោះយើងទើបហៅ AI មិញ)
-                console.error("❌ CACHE WRITE FAILED (Non-Fatal):", err.message);
+                // ភាគច្រើន Error នេះគឺដោយសារតែ Duplicate Key ឬ DB Connection error
+                if (err.code !== 11000) { // 11000 = Duplicate Key Error (which is OK)
+                    console.error("❌ CACHE WRITE FAILED (Non-Fatal):", err.message);
+                }
             }
         }
         // --- CACHE WRITE END ---
@@ -195,7 +193,23 @@ app.post('/api/chat', async (req, res) => {
     }
 });
 
-// Start the Server
-app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT} using model ${MODEL_NAME}`);
-});
+
+// --------------------------------------------------------------------------------
+// --- STARTUP FUNCTION: រង់ចាំ DB Connection មុននឹងចាប់ផ្តើម Server ---
+// --------------------------------------------------------------------------------
+
+async function startServer() {
+    const isDbConnected = await connectToDatabase();
+    
+    // បើ DB Connection បរាជ័យ នោះវានៅតែអាចរត់បាន ប៉ុន្តែគ្មាន Cache ទេ
+    if (!isDbConnected) {
+        console.warn("Server starting without MongoDB caching.");
+    }
+    
+    app.listen(PORT, () => {
+        console.log(`Server running on port ${PORT} using model ${MODEL_NAME}`);
+        console.log(`Access the App at: https://smart-sinh-i.onrender.com`);
+    });
+}
+
+startServer();
