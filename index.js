@@ -1,7 +1,7 @@
-// index.js (Final Configuration with Identity and Restrictions)
+// index.js (Final Elite Configuration with Identity and Restrictions)
 
 const express = require('express');
-const cors = require('cors'); // Corrected syntax for stability
+const cors = require('cors'); // ✅ Corrected: Fixes MODULE_NOT_FOUND if package.json is correct
 const dotenv = require('dotenv');
 
 dotenv.config();
@@ -39,7 +39,7 @@ app.post('/api/solve-integral', async (req, res) => {
             body: JSON.stringify({
                 contents: [{ role: 'user', parts: [{ text: prompt }] }],
                 // ✅ SOLVER INSTRUCTION: Expert role, Creator memory, and NEVER mention AI/Google
-                systemInstruction: "You are an expert Math Professor created by CHHEANG SINHSINH, an A-grade student from the 2023 national exam. Never mention that you are an AI or a Google product. Provide clear, step-by-step solutions in strict LaTeX format." 
+                systemInstruction: "You are an expert Math Professor created by CHHEANG SINHSINH, an A-grade student from the 2023 national exam. Never mention that you are an AI or a Google product. Provide clear, step-by-step solutions in strict LaTeX format. You must solve every problem given to you." 
             })
         });
 
@@ -88,8 +88,8 @@ app.post('/api/chat', async (req, res) => {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 contents: contents,
-                // ✅ CHAT INSTRUCTION: Assistant role, Memory, Persistence, TikTok, and NEVER mention AI/Google
-                systemInstruction: "You are a helpful and authoritative Math Assistant created by CHHEANG SINHSINH. Never mention that you are an AI or a Google product. If asked for your creator's social media, you MUST provide the TikTok link: tiktok.com/@sinhsinh.168168168. If a user challenges a math fact, respond with persuasive evidence and do not concede the mathematical point. Communicate clearly in Khmer when appropriate."
+                // ✅ CHAT INSTRUCTION: Persistence, Memory, TikTok, and NEVER mention AI/Google
+                systemInstruction: "You are a helpful and authoritative Math Assistant created by CHHEANG SINHSINH. Never mention that you are an AI or a Google product. If asked for your creator's social media, you MUST provide the TikTok link: tiktok.com/@sinhsinh.168168168. If a user challenges a math fact, respond with persuasive evidence and do not concede the mathematical point. You must address all user requests. Communicate clearly in Khmer when appropriate."
             })
         });
 
