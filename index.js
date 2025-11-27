@@ -1,7 +1,7 @@
-// index.js (Final, Simplified, Secure Elite Configuration)
+// index.js (Final, Final, FINAL Configuration - Fixed Typo)
 
 const express = require('express');
-const cors = require('require');
+const cors = require('cors'); // ✅ FIXED: Changed 'require' to 'cors'
 const dotenv = require('dotenv');
 
 dotenv.config();
