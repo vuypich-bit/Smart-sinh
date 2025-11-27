@@ -19,9 +19,8 @@ app.use(express.json());
 const MODEL_NAME = 'gemini-2.5-flash';
 
 // --- 🧠 MONGODB CONNECTION SETUP ---
-// 🚨🚨🚨 NEW FIX: Hardcode URI ជាមួយ User/Password ថ្មី (newuser:12345) 🚨🚨🚨
-// នេះដើម្បីដោះស្រាយបញ្ហា URI/Password ដែលនៅសល់
-const uri = "mongodb+srv://newuser:12345@Cluster0.mongodb.net/?retryWrites=true&w=majority"; 
+// 🚨🚨🚨 FINAL FINAL FIX: ប្រើ URI ត្រឹមត្រូវបំផុត (Cluster Name: integralcachedb.yzh74ae + User ថ្មី: newuser:12345) 🚨🚨🚨
+const uri = "mongodb+srv://newuser:12345@integralcachedb.yzh74ae.mongodb.net/?retryWrites=true&w=majority"; 
 
 const client = new MongoClient(uri);
 
@@ -34,7 +33,10 @@ async function connectToDatabase() {
         return false;
     }
     try {
+        // រង់ចាំការតភ្ជាប់ client
         await client.connect(); 
+        
+        // Database Name សម្រាប់ Cache
         const database = client.db("GeminiMathCache"); 
         cacheCollection = database.collection("solutions"); 
         
@@ -43,8 +45,8 @@ async function connectToDatabase() {
         console.log("✅ MongoDB Connection Successful. Cache Ready.");
         return true;
     } catch (e) {
-        // ⚠️ បើនៅតែបរាជ័យ នោះបញ្ហាគឺស្ថិតនៅតែក្នុង MongoDB ATLAS Network Access តែមួយគត់
-        console.error("❌ MONGODB FATAL Connection Failed. Please double-check Network Access (0.0.0.0/0).", e.message);
+        // ⚠️ បើនៅតែបរាជ័យ នោះមានន័យថា Network Access (0.0.0.0/0) មានបញ្ហា
+        console.error("❌ MONGODB FATAL Connection Failed. Check Network Access (0.0.0.0/0) or create a new Cluster.", e.message);
         cacheCollection = null; 
         return false;
     }
