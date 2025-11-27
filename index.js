@@ -21,15 +21,15 @@ app.use(express.json());
 // --- Configuration ---
 const MODEL_NAME = 'gemini-2.5-flash';
 
-// --- 🛑 RATE LIMITING SETUP ---
+// --- 🛑 គោលការណ៍កំណត់ល្បឿនថ្មី: 5 Requests ក្នុង 30 នាទី ---
 const limiter = rateLimit({
-	windowMs: 10 * 1000, // 10 វិនាទី
-	max: 3, // អនុញ្ញាតអោយមាន 3 Requests ក្នុង 10 វិនាទី ពី IP តែមួយ
+	windowMs: 30 * 60 * 1000, // 30 នាទី (1,800,000 ms)
+	max: 5, // អនុញ្ញាតអោយមាន 5 Requests ក្នុង 30 នាទី ពី IP តែមួយ
     message: async (req, res) => {
-        // ផ្ញើសារបដិសេធជា JSON
+        // 🚨 នេះជាកន្លែងដែលយើងកំណត់សារឆ្លើយតប
         res.status(429).json({ 
-            error: "Too many requests. Please try again after 10 seconds.",
-            khmer_message: "សំណើច្រើនពេក។ សូមព្យាយាមម្តងទៀតបន្ទាប់ពី ១០ វិនាទី។"
+            error: "Quota exceeded (5 requests per 30 minutes). Please wait 30 minutes.",
+            khmer_message: "សំណើច្រើនពេក។ អ្នកត្រូវបានកំណត់ត្រឹម ៥ ដងក្នុងរយៈពេល ៣០ នាទី។ សូមរង់ចាំ ៣០ នាទីមុននឹងប្រើម្តងទៀត។"
         });
     },
 	standardHeaders: true, // ប្រើ Rate Limit Headers
