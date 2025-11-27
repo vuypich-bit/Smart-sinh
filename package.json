@@ -1,18 +1,17 @@
 {
-  "name": "math-backend-server",
+  "name": "math-assistant-server",
   "version": "1.0.0",
-  "description": "Secure Backend for Integral Calculator",
+  "description": "Backend for the Gemini Math Assistant with MongoDB Caching and Rate Limiting.",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
   },
   "dependencies": {
     "cors": "^2.8.5",
-    "dotenv": "^16.3.1",
-    "express": "^4.18.2",
-    "mongodb": "^6.7.0"
-  },
-  "engines": {
-    "node": ">=18.0.0"
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "express-rate-limit": "^7.3.1",
+    "mongodb": "^6.8.0",
+    "node-fetch": "^3.3.2"
   }
 }
