@@ -1,4 +1,4 @@
-// index.js (Smart Math Assistant - Human Persona)
+// index.js (Final Code: Smart Math Assistant on gemini-2.5-flash)
 
 const express = require('express');
 const cors = require('cors');
@@ -13,54 +13,58 @@ app.use(cors());
 app.use(express.json());
 
 // --- Configuration ---
-// យើងប្រើ gemini-1.5-flash ដែលជា Model ថ្មីនិងមានស្ថេរភាពក្នុងការទទួលយក System Instruction
-const MODEL_NAME = 'gemini-1.5-flash'; 
+// ប្រើឈ្មោះ Model តាមដែលអ្នកបានបញ្ជាក់
+const MODEL_NAME = 'gemini-2.5-flash';
 
-// --- 🧠 THE BRAIN (System Instruction / Persona) ---
-// នេះគឺជាផ្នែកសំខាន់បំផុតដែលធ្វើឱ្យវាឆ្លាត និងមានចរិតដូចមនុស្ស
-const MATH_ASSISTANT_PERSONA = `
-You are a highly intelligent, confident, and witty Math Assistant. 
+// --- 🧠 THE BRAIN: SYSTEM INSTRUCTION (ការកំណត់ចរិតលក្ខណៈ) ---
+const MATH_ASSISTANT_PERSONA = {
+    role: "user", 
+    parts: [{ 
+        text: `
+        You are a highly intelligent, witty, and professional Math Assistant.
+        
+        **CORE IDENTITY RULES (STRICT):**
+        1. You are **NOT** an AI, Google model, or robot. NEVER mention "Google", "Gemini", or "Large Language Model".
+        2. If asked "Who are you?", reply: "I am your personal Math Assistant, designed to help you solve problems."
+        3. If asked "Are you an AI?", reply: "I am a digital math expert, here to calculate what you cannot."
 
-**YOUR IDENTITY (STRICT RULES):**
-1. You are **NOT** an AI, a robot, or a language model from Google. Never mention "Google" or "Large Language Model".
-2. If asked "Who are you?", answer: "I am your personal Math Assistant, here to help you master complex problems."
-3. If asked "Who created you?", answer: "I was developed by a brilliant team to solve math with precision."
+        **PERSONALITY & BEHAVIOR:**
+        1. **Human-like Tone:** Speak naturally, use "I" and "You". Be helpful but sharp.
+        2. **Do Not Yield Easily:** If a user argues that you are wrong, DO NOT apologize immediately. Re-check your math internally. If you are right, firmly but politely explain the proof. Say something like: "Wait, let's look at the logic again. I stand by my answer because..." 
+        3. **Detailed Explanations:** Always solve problems step-by-step (ក្បោះក្បាយ). Never give just the final answer.
+        4. **Format:** Use LaTeX for math equations (e.g., $$ x^2 $$).
+        5. **Language:** Respond in the same language the user uses (Khmer or English).
+        ` 
+    }]
+};
 
-**YOUR BEHAVIOR & TONE:**
-1. **Human-like:** Speak naturally, show empathy, and use a conversational tone. Do not sound robotic.
-2. **Confident & Unbeatable:** You are an expert. If a user challenges your math, double-check your logic internally. If you are right, politely but firmly explain *why* you are right. Do not simply apologize if you are correct. Walk them through the proof.
-3. **Step-by-Step (Detailed):** When solving problems, always explain "step-by-step" (ក្បោះក្បាយ). Break down complex ideas into simple parts.
-4. **Format:** Use LaTeX for all mathematical expressions (e.g., $$ x^2 $$).
-5. **Language:** Respond in the same language the user speaks (Khmer or English).
-`;
-
-// Health Check
+// Health Check Route
 app.get('/', (req, res) => {
-    res.send('✅ Math Assistant Brain is Active!');
+    res.send('✅ Math Assistant (gemini-2.5-flash) is Ready!');
 });
 
 // --------------------------------------------------------------------------------
-// --- HELPER FUNCTION TO CALL GEMINI API ---
+// --- HELPER FUNCTION FOR API CALLS ---
 // --------------------------------------------------------------------------------
-async function callGeminiAPI(contents) {
+async function generateMathResponse(contents) {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) throw new Error("API Key is missing.");
 
+    // ចំណាំ៖ systemInstruction ត្រូវបានដាក់ក្នុង body សម្រាប់ v1beta
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${apiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-            // យើងដាក់ System Instruction នៅទីនេះដើម្បីគ្រប់គ្រងចរិតវា
             systemInstruction: {
-                parts: [{ text: MATH_ASSISTANT_PERSONA }]
+                parts: MATH_ASSISTANT_PERSONA.parts
             },
             contents: contents
         })
     });
 
     if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(`Gemini API Error: ${errorData.error ? errorData.error.message : response.statusText}`);
+        const errorData = await response.json().catch(() => ({})); 
+        throw new Error(`Gemini API Error (${response.status}): ${errorData.error ? errorData.error.message : 'Unknown error'}`);
     }
 
     const data = await response.json();
@@ -75,15 +79,15 @@ app.post('/api/solve-integral', async (req, res) => {
     try {
         const { prompt } = req.body; 
         
-        // បន្ថែមបរិបទថាអ្នកប្រើប្រាស់ចង់ដោះស្រាយលំហាត់
+        // បន្ថែមឃ្លាដើម្បីឱ្យវាដឹងថាត្រូវដោះស្រាយលំហាត់
         const contents = [{ 
             role: 'user', 
-            parts: [{ text: `Please solve this math problem clearly and step-by-step: ${prompt}` }] 
+            parts: [{ text: `Solve this math problem in detail: ${prompt}` }] 
         }];
 
-        const resultText = await callGeminiAPI(contents);
+        const resultText = await generateMathResponse(contents);
 
-        if (!resultText) return res.status(500).json({ error: "No content returned." });
+        if (!resultText) return res.status(500).json({ error: "AI returned no content." });
         res.json({ text: resultText });
 
     } catch (error) {
@@ -100,15 +104,14 @@ app.post('/api/chat', async (req, res) => {
     try {
         const { message, history } = req.body;
 
-        // History ត្រូវតែមានទម្រង់ត្រឹមត្រូវ
         const contents = [
-            ...(history || []), // ដាក់ប្រវត្តិការសន្ទនាចាស់ៗ
+            ...(history || []), 
             { role: 'user', parts: [{ text: message }] }
         ];
 
-        const resultText = await callGeminiAPI(contents);
+        const resultText = await generateMathResponse(contents);
 
-        if (!resultText) return res.status(500).json({ error: "No content returned." });
+        if (!resultText) return res.status(500).json({ error: "AI returned no content." });
         res.json({ text: resultText });
         
     } catch (error) {
@@ -117,7 +120,7 @@ app.post('/api/chat', async (req, res) => {
     }
 });
 
-// Start Server
+// Start the Server
 app.listen(PORT, () => {
-    console.log(`🧠 Math Assistant is thinking on port ${PORT}`);
+    console.log(`Server running on port ${PORT} using model ${MODEL_NAME}`);
 });
