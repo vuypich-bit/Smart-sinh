@@ -1,15 +1,14 @@
-// index.js (Final Code with Route Fix and Robust Error Handling)
+// index.js (កូដចុងក្រោយដែលបានជួសជុលកំហុស "config" ទៅ "generationConfig")
 
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
-// Note: Ensure you have 'express', 'cors', and 'dotenv' installed in package.json
+// ត្រូវប្រាកដថាអ្នកបានដំឡើង (install) dependencies ទាំងនេះក្នុង package.json
 
-dotenv.config(); // Load environment variables from .env file (for local testing)
+dotenv.config();
 
 const app = express();
-// Use port 10000 based on your deployment logs
-const PORT = process.env.PORT || 10000; 
+const PORT = process.env.PORT || 10000; // ប្រើ Port 10000
 
 app.use(cors());
 app.use(express.json());
@@ -17,19 +16,19 @@ app.use(express.json());
 // --- Configuration ---
 const MODEL_NAME = 'gemini-2.5-flash';
 
-// Health Check Route (For Render Status)
+// Health Check Route
 app.get('/', (req, res) => {
     res.send('✅ Server is Running! Ready to solve math.');
 });
 
 // --- Main Route to Solve Integral ---
-// Route must match Frontend: /api/solve-integral
+// Route: /api/solve-integral
 app.post('/api/solve-integral', async (req, res) => {
     try {
         const { prompt, systemInstruction } = req.body;
         const apiKey = process.env.GEMINI_API_KEY;
 
-        // --- 🔴 CRITICAL DEBUGGING LINE: Check if the API Key is loaded ---
+        // --- 🔴 DEBUGGING LINE (ដើម្បីពិនិត្យ Key ត្រូវបានផ្ទុកឬអត់) ---
         console.log("Key Loaded (First 5 chars):", apiKey ? apiKey.substring(0, 5) : "NONE"); 
         // ----------------------------------------------------------------------
         
@@ -45,14 +44,14 @@ app.post('/api/solve-integral', async (req, res) => {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 contents: [{ role: 'user', parts: [{ text: prompt }] }],
-                config: {
-                    // Use systemInstruction passed from frontend or default to Math Professor role
+                // ✅ កែតម្រូវកំហុស "config" ទៅជា "generationConfig"
+                generationConfig: { 
                     systemInstruction: systemInstruction || "You are an expert Math Professor. Respond in clear LaTeX format, providing step-by-step solution."
                 }
             })
         });
 
-        // 3. Handle Non-OK HTTP Status (e.g., 400, 403, 429 errors from Gemini)
+        // 3. Handle Non-OK HTTP Status (e.g., 400 Bad Request, 403 Forbidden)
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({})); 
             console.error("Gemini API Non-OK Response Status:", response.status, errorData);
@@ -61,13 +60,13 @@ app.post('/api/solve-integral', async (req, res) => {
             });
         }
 
-        // 4. Parse the Successful Response and extract text (Handling 'Empty Response' from Frontend)
+        // 4. Parse the Successful Response and extract text
         const data = await response.json();
         const resultText = data.candidates?.[0]?.content?.parts?.[0]?.text;
 
         if (!resultText) {
             console.error("Empty Text Content from API:", data);
-            // This is the common cause for the 'Empty Response' error you're seeing.
+            // នេះគឺជាមូលហេតុនៃ 'Empty Response' (Quota/Restriction)
             return res.status(500).json({ error: "AI returned no text content (API Key/Quota issue suspected)." });
         }
 
