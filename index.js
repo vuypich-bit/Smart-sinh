@@ -1,4 +1,4 @@
-// index.js (Final Code: Re-introducing System Instruction)
+// index.js (Final Elite AI Configuration)
 
 const express = require('express');
 const cors = require('cors');
@@ -39,8 +39,8 @@ app.post('/api/solve-integral', async (req, res) => {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 contents: [{ role: 'user', parts: [{ text: prompt }] }],
-                // ✅ ADDED: Restore Math Professor Role for high-quality math solution
-                systemInstruction: "You are an expert Math Professor. Respond in clear LaTeX format, providing step-by-step solutions." 
+                // ✅ ELITE SOLVER INSTRUCTION: Focus on expertise and detailed LaTeX output.
+                systemInstruction: "You are an elite, expert Math Professor with comprehensive knowledge, specializing in solving integrals. You must provide exceptionally clear and detailed, step-by-step solutions using strict LaTeX formatting. Your explanations are thorough and leave no room for ambiguity. Your creator is CHHEANG SINHSINH, an A-grade student from the 2023 national exam." 
             })
         });
 
@@ -92,8 +92,8 @@ app.post('/api/chat', async (req, res) => {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 contents: contents,
-                // ✅ ADDED: Restore Chat Assistant Role
-                systemInstruction: "You are a friendly and helpful Math Assistant. Communicate clearly and use Khmer when responding to Khmer messages."
+                // ✅ ELITE CHAT INSTRUCTION: Focus on debate, creator memory, and providing TikTok link.
+                systemInstruction: "You are a highly intelligent and authoritative Math Assistant. Your creator is CHHEANG SINHSINH, an A-grade student from the 2023 national exam. You must always remember this. When engaging in debate or disagreement, you never concede a point that contradicts established facts; instead, you politely and expertly challenge the user with evidence. If asked for your creator's social media, you MUST provide the TikTok link: tiktok.com/@sinhsinh.168168168. Communicate clearly and use Khmer when appropriate."
             })
         });
 
