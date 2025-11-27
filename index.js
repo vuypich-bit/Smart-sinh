@@ -1,4 +1,4 @@
-// index.js (Final Code: Smart Math Assistant with Guaranteed MongoDB Connection)
+// index.js (កូដចុងក្រោយ: ជំនួយការគណិតវិទ្យាឆ្លាតវៃ)
 
 const express = require('express');
 const cors = require('cors');
@@ -19,34 +19,35 @@ app.use(express.json());
 const MODEL_NAME = 'gemini-2.5-flash';
 
 // --- 🧠 MONGODB CONNECTION SETUP ---
-// 🚨🚨🚨 FINAL FINAL FIX: ប្រើ URI ត្រឹមត្រូវបំផុត (Cluster Name: integralcachedb.yzh74ae + User ថ្មី: newuser:12345) 🚨🚨🚨
-const uri = "mongodb+srv://newuser:12345@integralcachedb.yzh74ae.mongodb.net/?retryWrites=true&w=majority"; 
+// 🚨🚨🚨 FINAL FIX: ប្រើ URI ថ្មីពី Cluster ថ្មី (cluster0.chyfb9f) 🚨🚨🚨
+// User: testuser, Pass: testpass
+const uri = "mongodb+srv://testuser:testpass@cluster0.chyfb9f.mongodb.net/?appName=Cluster0"; 
 
 const client = new MongoClient(uri);
 
 let cacheCollection; 
 
-// ផ្លាស់ប្តូរទៅជា Async Function ដើម្បីរង់ចាំ Connection
+// ភ្ជាប់ទៅ Database
 async function connectToDatabase() {
     if (!uri) {
-        console.warn("⚠️ MONGODB_URI is missing. Caching will be disabled.");
+        console.warn("⚠️ MONGODB_URI មិនត្រូវបានកំណត់។ Cache ត្រូវបានបិទ។");
         return false;
     }
     try {
-        // រង់ចាំការតភ្ជាប់ client
         await client.connect(); 
         
         // Database Name សម្រាប់ Cache
         const database = client.db("GeminiMathCache"); 
         cacheCollection = database.collection("solutions"); 
         
+        // ពិនិត្យការតភ្ជាប់ដោយរាប់ឯកសារ
         await cacheCollection.estimatedDocumentCount();
 
-        console.log("✅ MongoDB Connection Successful. Cache Ready.");
+        console.log("✅ MongoDB Connection ជោគជ័យ។ Cache រួចរាល់។");
         return true;
     } catch (e) {
-        // ⚠️ បើនៅតែបរាជ័យ នោះមានន័យថា Network Access (0.0.0.0/0) មានបញ្ហា
-        console.error("❌ MONGODB FATAL Connection Failed. Check Network Access (0.0.0.0/0) or create a new Cluster.", e.message);
+        // ⚠️ បើនៅតែបរាជ័យ នោះមានន័យថា Network Access (0.0.0.0/0) មិនទាន់ដំណើរការល្អទេ
+        console.error("❌ MONGODB FATAL Connection បរាជ័យ។ សូមពិនិត្យ Network Access (0.0.0.0/0) ក្នុង Atlas", e.message);
         cacheCollection = null; 
         return false;
     }
@@ -85,9 +86,9 @@ app.get('/', (req, res) => {
 // --- HELPER FUNCTION FOR API CALLS (unchanged) ---
 // --------------------------------------------------------------------------------
 async function generateMathResponse(contents) {
-    // ប្រើ GEMINI_API_KEY ពី Environment ព្រោះវានៅតែត្រូវការ
+    // ⚠️ ត្រូវតែអាន Key ពី Environment Variable (GEMINI_API_KEY)
     const apiKey = process.env.GEMINI_API_KEY; 
-    if (!apiKey) throw new Error("API Key is missing.");
+    if (!apiKey) throw new Error("API Key មិនត្រូវបានកំណត់។ សូមកំណត់ GEMINI_API_KEY នៅក្នុង Render Environment.");
 
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${apiKey}`, {
         method: 'POST',
@@ -126,7 +127,7 @@ app.post('/api/solve-integral', async (req, res) => {
             try {
                 const cachedResult = await cacheCollection.findOne({ _id: cacheKey });
                 if (cachedResult) {
-                    console.log(`[CACHE HIT] Found result for: "${normalizedPrompt.substring(0, 20)}..."`);
+                    console.log(`[CACHE HIT] រកឃើញលទ្ធផលសម្រាប់: "${normalizedPrompt.substring(0, 20)}..."`);
                     return res.json({ text: cachedResult.result_text });
                 }
             } catch (err) {
@@ -135,7 +136,7 @@ app.post('/api/solve-integral', async (req, res) => {
         }
         // --- CACHE READ END ---
         
-        console.log(`[AI CALL] Calling Gemini for: "${normalizedPrompt.substring(0, 20)}..."`);
+        console.log(`[AI CALL] កំពុងហៅ Gemini សម្រាប់: "${normalizedPrompt.substring(0, 20)}..."`);
         
         // បន្ថែមឃ្លាដើម្បីឱ្យវាដឹងថាត្រូវដោះស្រាយលំហាត់
         const contents = [{ 
@@ -146,7 +147,7 @@ app.post('/api/solve-integral', async (req, res) => {
         // 2. ហៅ AI (ប្រសិនបើគ្មានក្នុង Cache)
         const resultText = await generateMathResponse(contents);
 
-        if (!resultText) return res.status(500).json({ error: "AI returned no content." });
+        if (!resultText) return res.status(500).json({ error: "AI មិនបានផ្តល់ខ្លឹមសារទេ។" });
 
         // --- CACHE WRITE START ---
         if (cacheCollection) {
@@ -157,11 +158,11 @@ app.post('/api/solve-integral', async (req, res) => {
                     result_text: resultText,
                     timestamp: new Date()
                 });
-                console.log(`[CACHE WRITE SUCCESS] Saved result for: "${normalizedPrompt.substring(0, 20)}..."`);
+                console.log(`[CACHE WRITE SUCCESS] រក្សាទុកលទ្ធផលសម្រាប់: "${normalizedPrompt.substring(0, 20)}..."`);
             } catch (err) {
                 // ភាគច្រើន Error នេះគឺដោយសារតែ Duplicate Key ឬ DB Connection error
-                if (err.code !== 11000) { // 11000 = Duplicate Key Error (which is OK)
-                    console.error("❌ CACHE WRITE FAILED (Non-Fatal):", err.message);
+                if (err.code !== 11000) { // 11000 = Duplicate Key Error (ដែលមិនបង្កបញ្ហា)
+                    console.error("❌ CACHE WRITE FAILED (មិនធ្ងន់ធ្ងរ):", err.message);
                 }
             }
         }
@@ -190,7 +191,7 @@ app.post('/api/chat', async (req, res) => {
 
         const resultText = await generateMathResponse(contents);
 
-        if (!resultText) return res.status(500).json({ error: "AI returned no content." });
+        if (!resultText) return res.status(500).json({ error: "AI មិនបានផ្តល់ខ្លឹមសារទេ។" });
         res.json({ text: resultText });
         
     } catch (error) {
@@ -208,11 +209,11 @@ async function startServer() {
     const isDbConnected = await connectToDatabase();
     
     if (!isDbConnected) {
-        console.warn("Server starting without MongoDB caching.");
+        console.warn("Server កំពុងចាប់ផ្តើមដោយគ្មាន MongoDB caching។");
     }
     
     app.listen(PORT, () => {
-        console.log(`Server running on port ${PORT} using model ${MODEL_NAME}`);
+        console.log(`Server កំពុងដំណើរការលើ port ${PORT} ដោយប្រើ model ${MODEL_NAME}`);
         console.log(`Access the App at: https://smart-sinh-i.onrender.com`);
     });
 }
