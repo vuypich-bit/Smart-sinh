@@ -4,7 +4,7 @@ const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
 
-// 1. IMPORT MONGODB DRIVER (ធានាថា package.json មាន "mongodb")
+// 1. IMPORT MONGODB DRIVER 
 const { MongoClient } = require('mongodb');
 
 dotenv.config();
@@ -19,11 +19,10 @@ app.use(express.json());
 const MODEL_NAME = 'gemini-2.5-flash';
 
 // --- 🧠 MONGODB CONNECTION SETUP ---
-// ទាញយក URI ពី Environment Variable នៅលើ Render
 const uri = process.env.MONGODB_URI; 
 const client = new MongoClient(uri);
 
-let cacheCollection; // អថេរសម្រាប់ទុក Collection Cache
+let cacheCollection; 
 
 async function connectToDatabase() {
     try {
@@ -36,7 +35,6 @@ async function connectToDatabase() {
         cacheCollection = database.collection("solutions"); 
         console.log("✅ MongoDB Connected Successfully for Global Caching!");
     } catch (e) {
-        // ពិនិត្យមើលថា client.connect() បានបរាជ័យឬអត់
         console.error("❌ MONGODB Connection Failed:", e);
         cacheCollection = null; 
     }
@@ -99,28 +97,35 @@ async function generateMathResponse(contents) {
 }
 
 // --------------------------------------------------------------------------------
-// --- 1. MAIN SOLVER ROUTE (/api/solve-integral) WITH CACHE ---
+// --- 1. MAIN SOLVER ROUTE (/api/solve-integral) WITH CACHE (DEBUG MODE) ---
 // --------------------------------------------------------------------------------
 
 app.post('/api/solve-integral', async (req, res) => {
     try {
         const { prompt } = req.body; 
         
-        // 1. បង្កើត Cache Key - ប្រើ Normalization កាន់តែរឹងមាំ
-        // Normalization (NFD) ដកចេញនូវ diacritics (មិនប៉ះពាល់ខ្មែរច្រើនទេ)
-        // [IMPORTANT CHANGE HERE]
+        // 1. បង្កើត Cache Key (Robust Key)
         const cacheKey = prompt
-            .normalize("NFD") // Normalize Unicode characters
-            .replace(/[\u0300-\u036f]/g, "") // Remove common diacritics
+            .normalize("NFD") 
+            .replace(/[\u0300-\u036f]/g, "") 
             .toLowerCase()
-            .replace(/[^\w\s\u1780-\u17ff]/g, '') // Remove punctuation, except Khmer script
+            .replace(/[^\w\s\u1780-\u17ff]/g, '')
             .trim()
-            .replace(/\s+/g, ' '); // Replace all whitespace with a single space
-        // [END IMPORTANT CHANGE]
+            .replace(/\s+/g, ' ');
+
+        // --- DEBUG LOG: Cache Status and Key ---
+        console.log(`[DEBUG] Cache Connection Status: ${cacheCollection ? 'ACTIVE' : 'INACTIVE'}`);
+        console.log(`[DEBUG] Generated Cache Key: ${cacheKey}`);
+        // --- END DEBUG LOG ---
 
         // --- CACHE READ START ---
         if (cacheCollection) {
             const cachedResult = await cacheCollection.findOne({ _id: cacheKey });
+
+            // --- DEBUG LOG: Cache Result ---
+            console.log(`[DEBUG] Cache Read Result: ${cachedResult ? 'HIT' : 'MISS'}`);
+            // --- END DEBUG LOG ---
+
             if (cachedResult) {
                 console.log(`[CACHE HIT] Found result for: "${cacheKey.substring(0, 20)}..."`);
                 return res.json({ text: cachedResult.result_text });
@@ -150,7 +155,6 @@ app.post('/api/solve-integral', async (req, res) => {
                 });
                 console.log(`[CACHE WRITE] Saved result for: "${cacheKey.substring(0, 20)}..."`);
             } catch (err) {
-                // ភាគច្រើន Error នេះគឺដោយសារតែ Duplicate Key (មិនអីទេ ព្រោះយើងទើបហៅ AI មិញ)
                 console.error("Cache Write Error (Ignoring):", err.message);
             }
         }
