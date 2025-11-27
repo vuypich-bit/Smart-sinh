@@ -33,22 +33,24 @@ async function connectToDatabase() {
     try {
         // រង់ចាំការតភ្ជាប់ client
         await client.connect(); 
-        const database = client.db("IntegralCacheDB"); 
+        
+        // --- IMPORTANT CHANGE: ប្រើ Database Name ថ្មី (GeminiMathCache) ---
+        const database = client.db("GeminiMathCache"); 
         cacheCollection = database.collection("solutions"); 
         
-        // ផ្ទៀងផ្ទាត់ការតភ្ជាប់ដោយការព្យាយាម Write តូចមួយ (Optional but good)
+        // ផ្ទៀងផ្ទាត់ការតភ្ជាប់
         await cacheCollection.estimatedDocumentCount();
 
         console.log("✅ MongoDB Connection Successful. Cache Ready.");
         return true;
     } catch (e) {
-        console.error("❌ MONGODB FATAL Connection Failed. Caching Disabled.", e.message);
+        console.error("❌ MONGODB FATAL Connection Failed. Caching Disabled. Check URI/Password/Network Access.", e.message);
         cacheCollection = null; 
         return false;
     }
 }
 
-// --- 🧠 THE BRAIN: SYSTEM INSTRUCTION ---
+// --- 🧠 THE BRAIN: SYSTEM INSTRUCTION (unchanged) ---
 const MATH_ASSISTANT_PERSONA = {
     role: "user", 
     parts: [{ 
@@ -72,12 +74,13 @@ const MATH_ASSISTANT_PERSONA = {
 
 // Health Check Route
 app.get('/', (req, res) => {
-    const dbStatus = cacheCollection ? "Connected ✅" : "Disconnected ❌ (Check URI/Firewall)";
-    res.send(`✅ Math Assistant (gemini-2.5-flash) is Ready! DB Cache: ${dbStatus}`);
+    // បង្ហាញสถานៈច្បាស់លាស់នៅលើ Health Check
+    const dbStatus = cacheCollection ? "Connected ✅ (Caching Active)" : "Disconnected ❌ (Caching Disabled)";
+    res.send(`✅ Math Assistant (gemini-2.5-flash) is Ready! DB Cache Status: ${dbStatus}`);
 });
 
 // --------------------------------------------------------------------------------
-// --- HELPER FUNCTION FOR API CALLS ---
+// --- HELPER FUNCTION FOR API CALLS (unchanged) ---
 // --------------------------------------------------------------------------------
 async function generateMathResponse(contents) {
     const apiKey = process.env.GEMINI_API_KEY;
@@ -104,7 +107,7 @@ async function generateMathResponse(contents) {
 }
 
 // --------------------------------------------------------------------------------
-// --- 1. MAIN SOLVER ROUTE (/api/solve-integral) WITH CACHE (Base64 Key) ---
+// --- 1. MAIN SOLVER ROUTE (/api/solve-integral) WITH CACHE (unchanged logic) ---
 // --------------------------------------------------------------------------------
 
 app.post('/api/solve-integral', async (req, res) => {
@@ -170,7 +173,7 @@ app.post('/api/solve-integral', async (req, res) => {
 });
 
 // --------------------------------------------------------------------------------
-// --- 2. CHAT ROUTE (/api/chat) ---
+// --- 2. CHAT ROUTE (/api/chat) (unchanged) ---
 // --------------------------------------------------------------------------------
 
 app.post('/api/chat', async (req, res) => {
@@ -195,7 +198,7 @@ app.post('/api/chat', async (req, res) => {
 
 
 // --------------------------------------------------------------------------------
-// --- STARTUP FUNCTION: រង់ចាំ DB Connection មុននឹងចាប់ផ្តើម Server ---
+// --- STARTUP FUNCTION (unchanged) ---
 // --------------------------------------------------------------------------------
 
 async function startServer() {
