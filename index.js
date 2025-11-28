@@ -1,4 +1,4 @@
-// index.js (Final Version V15: God-Mode + ULTIMATE Normalization + CRITICAL POWER 1 FIX)
+// index.js (Final Version V16: God-Mode + ULTIMATE Normalization + CRITICAL POWER CAPTURE FIX)
 
 const express = require('express');
 const cors = require('cors');
@@ -30,7 +30,7 @@ const uri = "mongodb+srv://testuser:testpass@cluster0.chyfb9f.mongodb.net/?appNa
 const client = new MongoClient(uri);
 
 let cacheCollection; 
-let visitorsCollection; // សម្រាប់តាមដានអ្នកប្រើប្រាស់
+let visitorsCollection; 
 
 // ភ្ជាប់ទៅ Database
 async function connectToDatabase() {
@@ -56,7 +56,7 @@ async function connectToDatabase() {
     }
 }
 
-// --- 🧹 ULTIMATE SMART NORMALIZATION FUNCTION (V15 - FINAL SAFE FIX) ---
+// --- 🧹 ULTIMATE SMART NORMALIZATION FUNCTION (V16 - FINAL FIX) ---
 function normalizeMathInput(input) {
     if (!input) return "";
 
@@ -69,9 +69,14 @@ function normalizeMathInput(input) {
     // 3. ប្តូរលេខស្វ័យគុណ Unicode ទាំងអស់ (⁰-⁹) ទៅជាលេខធម្មតា (0-9)
     cleaned = cleaned.replace(/⁰/g, '0').replace(/¹/g, '1').replace(/²/g, '2').replace(/³/g, '3').replace(/⁴/g, '4').replace(/⁵/g, '5').replace(/⁶/g, '6').replace(/⁷/g, '7').replace(/⁸/g, '8').replace(/⁹/g, '9');
     
-    // 4. IMPLICIT POWER FIX (f21x -> f^21x)
-    cleaned = cleaned.replace(/([a-z]+)([0-9]+)(\()/g, '$1^$2$3'); // f21(x)
-    cleaned = cleaned.replace(/([a-z]+)([0-9]+)([a-z])/g, '$1^$2$3'); // f21x
+    // 4. 🔥 CRITICAL IMPLICIT POWER FIX (V16):
+    // ធានាថាចាប់យកលេខទាំងមូល (41) និងបញ្ចូល caret ត្រឹមត្រូវ 
+    
+    // 4a. ករណី f41(x) -> f^41(x)
+    cleaned = cleaned.replace(/([a-z]+)([0-9]+)(\()/g, '$1^$2$3');
+    
+    // 4b. ករណី f41x -> f^41x
+    cleaned = cleaned.replace(/([a-z]+)([0-9]+)([a-z])/g, '$1^$2$3');
 
     // 5. CONSOLIDATION FIX
     cleaned = cleaned.replace(/\(([a-z]+)([^\)]+)\)\^([0-9]+)/g, '$1^$3$2'); // (sinx)^n -> sin^n x
@@ -89,10 +94,8 @@ function normalizeMathInput(input) {
     // 8. ដោះវង់ក្រចកចេញពីអក្សរតែមួយដែលស្វ័យគុណ ((k)^2 -> k^2)
     cleaned = cleaned.replace(/\(([a-z])\)\^/g, '$1^');
 
-    // 9. 🔥 CRITICAL SAFE POWER 1 REMOVAL (FINAL FIX FOR 10, 11, 12, 17...) 🔥
-    // 9a. លុប ^1 បើ Argument តាម (x ឫ ()
+    // 9. CRITICAL SAFE POWER 1 REMOVAL (V13 Fix)
     cleaned = cleaned.replace(/\^1([a-z\(])/g, '$1'); 
-    // 9b. លុប ^1 បើវាជាតួចុងក្រោយនៃ Input
     cleaned = cleaned.replace(/\^1$/g, ''); 
 
     return cleaned.trim();
