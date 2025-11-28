@@ -1,4 +1,4 @@
-// index.js (Final Version: God-Mode + ULTIMATE Math Normalization V9 - Power Consolidation)
+// index.js (Final Version V10: God-Mode + ULTIMATE Normalization + Rate Limit Bypass)
 
 const express = require('express');
 const cors = require('cors');
@@ -52,7 +52,7 @@ async function connectToDatabase() {
     }
 }
 
-// --- 🧹 ULTIMATE SMART NORMALIZATION FUNCTION (V9 - FINAL FIX) ---
+// --- 🧹 ULTIMATE SMART NORMALIZATION FUNCTION (V10 - FINAL FIX) ---
 function normalizeMathInput(input) {
     if (!input) return "";
 
@@ -65,18 +65,19 @@ function normalizeMathInput(input) {
     // 3. ប្តូរលេខស្វ័យគុណ Unicode ទាំងអស់ (⁰-⁹) ទៅជាលេខធម្មតា (0-9)
     cleaned = cleaned.replace(/⁰/g, '0').replace(/¹/g, '1').replace(/²/g, '2').replace(/³/g, '3').replace(/⁴/g, '4').replace(/⁵/g, '5').replace(/⁶/g, '6').replace(/⁷/g, '7').replace(/⁸/g, '8').replace(/⁹/g, '9');
     
-    // 4. GENERAL FIX: ប្តូរទម្រង់ implicit power notation (f15x -> f^15x)
+    // 4. 🔥 IMPLICIT POWER FIX: ប្តូរទម្រង់ f18x ឬ f18(x) ទៅជា f^18...
+    // 4a. ករណី f18(x) -> f^18(x) (ដោះស្រាយបញ្ហា sin18(x))
+    cleaned = cleaned.replace(/([a-z]+)\s*([0-9]+)(\s*\()/g, '$1^$2$3');
+    // 4b. ករណី f18x -> f^18x
     cleaned = cleaned.replace(/([a-z]+)\s*([0-9]+)([a-z])/g, '$1^$2$3');
 
-    // 5. 🔥 CONSOLIDATION FIX (ដំណោះស្រាយចុងក្រោយ):
-    // ធ្វើឱ្យ (sinx)^17, sin^17(x), និង sin^17x ក្លាយជាទម្រង់តែមួយគឺ "sin^17x"
+    // 5. 🔥 CONSOLIDATION FIX: បង្រួបបង្រួម (FUNC ARG)^POWER និង FUNC^POWER(ARG) ទៅជាទម្រង់សាមញ្ញបំផុត FUNC^POWER ARG
+    // ធ្វើឱ្យ sin^18x, (sinx)^18, sin^18(x) ក្លាយជា "sin^18x" ដូចគ្នាទាំងអស់
     
     // 5a. ករណី (FUNC ARG)^POWER -> FUNC^POWER ARG (លុបវង់ក្រចកធំ)
-    // ឧទាហរណ៍: (sin x)^17 -> sin^17 x
     cleaned = cleaned.replace(/\(\s*([a-z]+)\s*([^\)]+)\s*\)\s*\^([0-9]+)/g, '$1^$3$2');
 
     // 5b. ករណី FUNC^POWER(ARG) -> FUNC^POWER ARG (លុបវង់ក្រចក Argument)
-    // ឧទាហរណ៍: sin^17(x) -> sin^17 x
     cleaned = cleaned.replace(/([a-z]+)\^([0-9]+)\s*\(([^()]+)\)/g, '$1^$2$3');
 
 
@@ -90,7 +91,7 @@ function normalizeMathInput(input) {
     // 7. MULTIPLICATION FIX: ប្តូរការគុណតួដូចគ្នាទៅជាស្វ័យគុណ (A * A -> A^2)
     cleaned = cleaned.replace(/([a-z0-9]+)\s*\*\s*\1/g, '$1^2'); 
 
-    // 8. ដោះវង់ក្រចកចេញពីអក្សរតែមួយដែលស្វ័យគុណ ((k)^2 -> k^2)
+    // 8. ដោះវង់ក្រចកចេញពីអក្សរតែមួយដែលស្វ័យគុណ (k)^2 -> k^2
     cleaned = cleaned.replace(/\(\s*([a-z])\s*\)\^/g, '$1^');
 
     // 9. លុបចោល Power 1 (^1) ទាំងស្រុង
