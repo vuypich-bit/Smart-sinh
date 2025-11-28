@@ -1,4 +1,4 @@
-// index.js (Final Version V10: God-Mode + ULTIMATE Normalization + Rate Limit Bypass)
+// index.js (Final Version V11: God-Mode + ULTIMATE Normalization + ALL SPACES REMOVED)
 
 const express = require('express');
 const cors = require('cors');
@@ -52,47 +52,48 @@ async function connectToDatabase() {
     }
 }
 
-// --- 🧹 ULTIMATE SMART NORMALIZATION FUNCTION (V10 - FINAL FIX) ---
+// --- 🧹 ULTIMATE SMART NORMALIZATION FUNCTION (V11 - FINAL SPACE FIX) ---
 function normalizeMathInput(input) {
     if (!input) return "";
 
     // 1. ប្តូរទៅជាអក្សរតូចទាំងអស់ (Case Insensitivity)
     let cleaned = input.toLowerCase(); 
 
-    // 2. ដក Space ស្ទួនចេញ
-    cleaned = cleaned.replace(/\s+/g, ' '); 
+    // 2. 🔥 KILL ALL SPACES: លុប Space ទាំងអស់ចោលភ្លាមៗ
+    // នេះធានាថា "sin ^ 20 x" និង "sin^20x" គឺដូចគ្នា 100%
+    cleaned = cleaned.replace(/\s/g, ''); 
 
     // 3. ប្តូរលេខស្វ័យគុណ Unicode ទាំងអស់ (⁰-⁹) ទៅជាលេខធម្មតា (0-9)
     cleaned = cleaned.replace(/⁰/g, '0').replace(/¹/g, '1').replace(/²/g, '2').replace(/³/g, '3').replace(/⁴/g, '4').replace(/⁵/g, '5').replace(/⁶/g, '6').replace(/⁷/g, '7').replace(/⁸/g, '8').replace(/⁹/g, '9');
     
-    // 4. 🔥 IMPLICIT POWER FIX: ប្តូរទម្រង់ f18x ឬ f18(x) ទៅជា f^18...
-    // 4a. ករណី f18(x) -> f^18(x) (ដោះស្រាយបញ្ហា sin18(x))
-    cleaned = cleaned.replace(/([a-z]+)\s*([0-9]+)(\s*\()/g, '$1^$2$3');
+    // 4. IMPLICIT POWER FIX: ប្តូរទម្រង់ f18x ឬ f18(x) ទៅជា f^18...
+    // 4a. ករណី f18(x) -> f^18(x)
+    cleaned = cleaned.replace(/([a-z]+)([0-9]+)(\()/g, '$1^$2$3');
     // 4b. ករណី f18x -> f^18x
-    cleaned = cleaned.replace(/([a-z]+)\s*([0-9]+)([a-z])/g, '$1^$2$3');
+    cleaned = cleaned.replace(/([a-z]+)([0-9]+)([a-z])/g, '$1^$2$3');
 
-    // 5. 🔥 CONSOLIDATION FIX: បង្រួបបង្រួម (FUNC ARG)^POWER និង FUNC^POWER(ARG) ទៅជាទម្រង់សាមញ្ញបំផុត FUNC^POWER ARG
-    // ធ្វើឱ្យ sin^18x, (sinx)^18, sin^18(x) ក្លាយជា "sin^18x" ដូចគ្នាទាំងអស់
+    // 5. CONSOLIDATION FIX: បង្រួបបង្រួម (FUNC ARG)^POWER និង FUNC^POWER(ARG) ទៅជាទម្រង់សាមញ្ញបំផុត FUNC^POWER ARG
     
     // 5a. ករណី (FUNC ARG)^POWER -> FUNC^POWER ARG (លុបវង់ក្រចកធំ)
-    cleaned = cleaned.replace(/\(\s*([a-z]+)\s*([^\)]+)\s*\)\s*\^([0-9]+)/g, '$1^$3$2');
+    cleaned = cleaned.replace(/\(([a-z]+)([^\)]+)\)\^([0-9]+)/g, '$1^$3$2');
 
     // 5b. ករណី FUNC^POWER(ARG) -> FUNC^POWER ARG (លុបវង់ក្រចក Argument)
-    cleaned = cleaned.replace(/([a-z]+)\^([0-9]+)\s*\(([^()]+)\)/g, '$1^$2$3');
+    cleaned = cleaned.replace(/([a-z]+)\^([0-9]+)\(([^()]+)\)/g, '$1^$2$3');
 
 
     // 6. DIVISION FIX: ប្តូរការចែកតួដូចគ្នាទៅជា 1 (A/A -> 1)
-    cleaned = cleaned.replace(/\b([a-z0-9]+)\s*\/\s*\1\b/g, '1');
-    cleaned = cleaned.replace(/\(\s*([a-z0-9]+)\s*\)\s*\/\s*\1/g, '1');
-    cleaned = cleaned.replace(/([a-z0-9]+)\s*\/\s*\(\s*\1\s*\)/g, '1');
-    cleaned = cleaned.replace(/\(\s*([a-z0-9]+)\s*\)\s*\/\s*\(\s*\1\s*\)/g, '1');
+    // ដោយសារលុប Space អស់ហើយ Regex ខ្លីជាងមុន
+    cleaned = cleaned.replace(/([a-z0-9]+)\/\1/g, '1'); 
+    cleaned = cleaned.replace(/\(([a-z0-9]+)\)\/\1/g, '1');
+    cleaned = cleaned.replace(/([a-z0-9]+)\/\(([a-z0-9]+)\)/g, '1');
+    cleaned = cleaned.replace(/\(([a-z0-9]+)\)\/\(([a-z0-9]+)\)/g, '1');
 
 
     // 7. MULTIPLICATION FIX: ប្តូរការគុណតួដូចគ្នាទៅជាស្វ័យគុណ (A * A -> A^2)
-    cleaned = cleaned.replace(/([a-z0-9]+)\s*\*\s*\1/g, '$1^2'); 
+    cleaned = cleaned.replace(/([a-z0-9]+)\*\1/g, '$1^2'); 
 
     // 8. ដោះវង់ក្រចកចេញពីអក្សរតែមួយដែលស្វ័យគុណ (k)^2 -> k^2
-    cleaned = cleaned.replace(/\(\s*([a-z])\s*\)\^/g, '$1^');
+    cleaned = cleaned.replace(/\(([a-z])\)\^/g, '$1^');
 
     // 9. លុបចោល Power 1 (^1) ទាំងស្រុង
     cleaned = cleaned.replace(/\^1/g, ''); 
