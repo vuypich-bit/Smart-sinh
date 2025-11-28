@@ -1,73 +1,111 @@
-// index.js (Final Version V20: God-Mode + CORS Fix + Anti-Collision Cache)
+// ==================================================================================
+// 🚀 INTEGRAL CALCULATOR AI - BACKEND SERVER (V23 - FULL RESTORED)
+// ==================================================================================
+// Developed by: Mr. CHHEANG SINHSINH (BacII 2023 Grade A)
+// Powered by: Google Gemini 2.5 Flash & MongoDB Atlas
+// ==================================================================================
 
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
 
-// 1. IMPORT RATE LIMIT
+// 1. IMPORT RATE LIMIT TO PREVENT ABUSE
+// នេះគឺជាការការពារកុំឱ្យគេ Spam Server របស់អ្នក
 const rateLimit = require('express-rate-limit'); 
 
 // 2. IMPORT MONGODB DRIVER 
+// ប្រើសម្រាប់ភ្ជាប់ទៅ Database ដើម្បីរក្សាទុក Cache
 const { MongoClient } = require('mongodb');
 
+// Load environment variables
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 10000; 
 
-// --- 🚨 IMPORTANT FOR RENDER/CLOUD DEPLOYMENT 🚨 ---
+// ==================================================================================
+// 🚨 IMPORTANT FOR RENDER/CLOUD DEPLOYMENT 🚨
+// ==================================================================================
+// ដោយសារ Render ប្រើ Proxy, យើងត្រូវប្រាប់ Express ឱ្យទុកចិត្ត Proxy នោះ
+// បើមិនចឹងទេ Rate Limiter នឹងមិនស្គាល់ IP ពិតរបស់អ្នកប្រើប្រាស់ទេ
 app.set('trust proxy', 1);
 
-// ==========================================
+// ==================================================================================
 // 🔥 CORS CONFIGURATION (CLOUDFLARE FIX)
-// ==========================================
+// ==================================================================================
+// កន្លែងនេះកំណត់ថាអ្នកណាខ្លះមានសិទ្ធិហៅ API របស់អ្នក
 const allowedOrigins = [
     'https://integralcalculator.site',       // ✅ Cloudflare Frontend
     'https://www.integralcalculator.site',   // ✅ Cloudflare Frontend (WWW)
     'https://sinh-1.onrender.com',           // ✅ Backend Itself
-    'http://localhost:3000'                  // Local Testing
+    'http://localhost:3000',                 // Local Testing
+    'http://127.0.0.1:5500'                  // Live Server VS Code
 ];
 
 app.use(cors({
     origin: function (origin, callback) {
+        // អនុញ្ញាត Request ដែលគ្មាន Origin (Mobile Apps, Curl, Postman)
         if (!origin) return callback(null, true);
-        // Allow all for now to prevent blocking, secure later if needed
+        
+        // ដើម្បីកុំឱ្យមាន Error CORS យើង Allow ទាំងអស់បណ្តោះអាសន្ន
+        // ដើម្បីធានាថា Cloudflare អាចហៅមកបាន១០០%
         return callback(null, true);
     },
     methods: ['GET', 'POST', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true
 }));
 
 app.use(express.json());
 
 // --- Configuration ---
+// កំណត់ម៉ូដែល AI ដែលត្រូវប្រើ (Gemini 2.5 Flash លឿននិងឆ្លាត)
 const MODEL_NAME = 'gemini-2.5-flash';
 
-// --- 🧠 MONGODB CONNECTION SETUP ---
-// ⚠️ ប្រើ process.env.MONGODB_URI សម្រាប់ Render
-const uri = process.env.MONGODB_URI || "mongodb+srv://testuser:testpass@cluster0.chyfb9f.mongodb.net/?appName=Cluster0"; 
+// ==================================================================================
+// ⚠️⚠️⚠️ MONGODB CONNECTION SETUP (HARDCODED AS REQUESTED) ⚠️⚠️⚠️
+// ==================================================================================
+// នេះគឺជា Link សម្រាប់ភ្ជាប់ទៅ Database របស់អ្នក។
+// សូមកុំកែប្រែវា ប្រសិនបើអ្នកមិនចង់អោយ Database ដាច់។
+const uri = "mongodb+srv://testuser:testpass@cluster0.chyfb9f.mongodb.net/?appName=Cluster0"; 
 
 const client = new MongoClient(uri);
 
+// Variables សម្រាប់រក្សាទុក Connection
 let cacheCollection; 
 let visitorsCollection; 
 
-// ភ្ជាប់ទៅ Database
+// ----------------------------------------------------------------------------------
+// 🔗 FUNCTION: CONNECT TO DATABASE
+// ----------------------------------------------------------------------------------
 async function connectToDatabase() {
-    if (!uri || uri.includes("testuser:testpass")) {
-        console.warn("⚠️ MONGODB_URI មិនត្រូវបានកំណត់ត្រឹមត្រូវ។ Cache ត្រូវបានបិទ។");
-        // យើងមិន return false ទេ អនុញ្ញាតឱ្យវាដំណើរការដោយគ្មាន cache
+    console.log("⏳ កំពុងភ្ជាប់ទៅ MongoDB Atlas...");
+
+    if (!uri) {
+        console.warn("⚠️ MONGODB_URI មិនត្រូវបានកំណត់។ Cache ត្រូវបានបិទ។");
+        return false;
     }
+
     try {
+        // ព្យាយាមភ្ជាប់ទៅ Server
         await client.connect(); 
+        
+        // ជ្រើសរើស Database ឈ្មោះ "GeminiMathCache"
         const database = client.db("GeminiMathCache"); 
         
+        // ជ្រើសរើស Collections (តារាងទិន្នន័យ)
         cacheCollection = database.collection("solutions"); 
         visitorsCollection = database.collection("daily_visitors"); 
 
-        console.log("✅ MongoDB Connection ជោគជ័យ។ Cache & Tracking រួចរាល់។");
+        // Test connection ដោយរាប់ចំនួនឯកសារ
+        const count = await cacheCollection.estimatedDocumentCount();
+        
+        console.log("✅ MongoDB Connection ជោគជ័យ (Hardcoded URI)!");
+        console.log(`📦 Cache ត្រៀមរួចរាល់។ ចំនួន Cache បច្ចុប្បន្ន: ${count}`);
+        
         return true;
     } catch (e) {
+        // បើមានបញ្ហា បង្ហាញ Error ក្នុង Console
         console.error("❌ MONGODB FATAL Connection បរាជ័យ:", e.message);
         cacheCollection = null; 
         visitorsCollection = null;
@@ -75,30 +113,69 @@ async function connectToDatabase() {
     }
 }
 
-// --- 🧹 ULTIMATE SMART NORMALIZATION FUNCTION (V17 Logic) ---
+// ==================================================================================
+// 🧹 ULTIMATE SMART NORMALIZATION FUNCTION (FULL LOGIC)
+// ==================================================================================
+// មុខងារនេះមានតួនាទីសំអាតលំហាត់គណិតវិទ្យាអោយមានស្តង់ដារតែមួយ
+// ដើម្បីអោយ Cache អាចដំណើរការបានល្អបំផុត។
 function normalizeMathInput(input) {
     if (!input) return "";
 
+    // 1. ប្តូរទៅជាអក្សរតូចទាំងអស់ (sin, SIN, Sin -> sin)
     let cleaned = input.toLowerCase(); 
+
+    // 2. KILL ALL SPACES (លុបចន្លោះទាំងអស់ចេញ)
     cleaned = cleaned.replace(/\s/g, ''); 
-    cleaned = cleaned.replace(/⁰/g, '0').replace(/¹/g, '1').replace(/²/g, '2').replace(/³/g, '3').replace(/⁴/g, '4').replace(/⁵/g, '5').replace(/⁶/g, '6').replace(/⁷/g, '7').replace(/⁸/g, '8').replace(/⁹/g, '9');
-    cleaned = cleaned.replace(/([a-z]+)([0-9]+)(\()/g, '$1^$2$3'); 
-    cleaned = cleaned.replace(/([a-z]+)([0-9]+)([a-z])/g, '$1^$2$3'); 
-    cleaned = cleaned.replace(/\(([a-z]+)([^\)]+)\)\^([0-9]+)/g, '$1^$3$2'); 
-    cleaned = cleaned.replace(/([a-z]+)\^([0-9]+)\(([^()]+)\)/g, '$1^$2$3'); 
+
+    // 3. ប្តូរលេខស្វ័យគុណ Unicode ទាំងអស់ (⁰-⁹) ទៅជាលេខធម្មតា (0-9)
+    cleaned = cleaned.replace(/⁰/g, '0');
+    cleaned = cleaned.replace(/¹/g, '1');
+    cleaned = cleaned.replace(/²/g, '2');
+    cleaned = cleaned.replace(/³/g, '3');
+    cleaned = cleaned.replace(/⁴/g, '4');
+    cleaned = cleaned.replace(/⁵/g, '5');
+    cleaned = cleaned.replace(/⁶/g, '6');
+    cleaned = cleaned.replace(/⁷/g, '7');
+    cleaned = cleaned.replace(/⁸/g, '8');
+    cleaned = cleaned.replace(/⁹/g, '9');
+    
+    // 4. IMPLICIT POWER FIX (f41x -> f^41x)
+    // ប្រើ Greedy capture ([0-9]+) ដើម្បីធានាថាចាប់បានលេខទាំងអស់ (41, 14, 11)
+    cleaned = cleaned.replace(/([a-z]+)([0-9]+)(\()/g, '$1^$2$3'); // f41(x) -> f^41(x)
+    cleaned = cleaned.replace(/([a-z]+)([0-9]+)([a-z])/g, '$1^$2$3'); // f41x -> f^41x
+
+    // 5. CONSOLIDATION FIX
+    // ប្តូរពីទម្រង់ (sinx)^n ទៅជា sin^n x អោយដូចគ្នា
+    cleaned = cleaned.replace(/\(([a-z]+)([^\)]+)\)\^([0-9]+)/g, '$1^$3$2'); // (sinx)^n -> sin^n x
+    cleaned = cleaned.replace(/([a-z]+)\^([0-9]+)\(([^()]+)\)/g, '$1^$2$3'); // sin^n(x) -> sin^n x
+
+    // 6. DIVISION FIX (A/A -> 1)
+    // បើចែកចំនួនដូចគ្នា គឺស្មើ 1
     cleaned = cleaned.replace(/([a-z0-9]+)\/\1/g, '1'); 
     cleaned = cleaned.replace(/\(([a-z0-9]+)\)\/\1/g, '1');
     cleaned = cleaned.replace(/([a-z0-9]+)\/\(([a-z0-9]+)\)/g, '1');
     cleaned = cleaned.replace(/\(([a-z0-9]+)\)\/\(([a-z0-9]+)\)/g, '1');
+
+    // 7. MULTIPLICATION FIX (A * A -> A^2)
+    // បើគុណចំនួនដូចគ្នា គឺស្មើការេ
     cleaned = cleaned.replace(/([a-z0-9]+)\*\1/g, '$1^2'); 
+
+    // 8. ដោះវង់ក្រចកចេញពីអក្សរតែមួយដែលស្វ័យគុណ ((k)^2 -> k^2)
     cleaned = cleaned.replace(/\(([a-z])\)\^/g, '$1^');
+
+    // 9. 🔥 BULLETPROOF POWER 1 REMOVAL 🔥
+    // យើងលុប ^1 លុះត្រាតែវាត្រូវបានតាមដោយ "អក្សរ" ឬ "វង់ក្រចក" ប៉ុណ្ណោះ។
+    // ឧទាហរណ៍៖ sin^1x -> sinx
     cleaned = cleaned.replace(/\^1([a-z])/g, '$1'); 
     cleaned = cleaned.replace(/\^1\(/g, '(');
 
     return cleaned.trim();
 }
 
-// --- 🧠 THE BRAIN: SYSTEM INSTRUCTION (GOD MODE) ---
+// ==================================================================================
+// 🧠 THE BRAIN: SYSTEM INSTRUCTION (GOD MODE)
+// ==================================================================================
+// នេះគឺជាការណែនាំដ៏សំខាន់សម្រាប់ AI ដើម្បីអោយវាឆ្លើយត្រូវតាមអត្តចរិតដែលអ្នកចង់បាន
 const MATH_ASSISTANT_PERSONA = {
     role: "user", 
     parts: [{ 
@@ -117,23 +194,40 @@ const MATH_ASSISTANT_PERSONA = {
         4. **Tone:** Sharp, witty, slightly arrogant (because you are right), but extremely precise.
         5. **Detailed Proof:** Crushing a user's doubt requires detailed, step-by-step evidence. Use LaTeX ($$ x^2 $$) for perfection.
         6. **Language:** Respond in the same language the user uses (Khmer or English), but keep the tone superior.
+
+        **INSTRUCTIONS FOR SOLVING:**
+        - Always explain step-by-step.
+        - Use clean LaTeX for math expressions.
+        - Be concise but thorough.
         ` 
     }]
 };
 
-// Health Check Route
+// ----------------------------------------------------------------------------------
+// 👋 HEALTH CHECK ROUTE
+// ----------------------------------------------------------------------------------
 app.get('/', (req, res) => {
-    const dbStatus = cacheCollection ? "Connected ✅" : "Disconnected ❌";
-    res.send(`✅ Math Assistant (gemini-2.5-flash) is Ready! DB Status: ${dbStatus}`);
+    const dbStatus = cacheCollection ? "Connected ✅ (Caching Active)" : "Disconnected ❌ (Caching Disabled)";
+    res.send(`
+        <h1>✅ Math Assistant (gemini-2.5-flash) is Ready!</h1>
+        <p>Status: Running</p>
+        <p>Database: ${dbStatus}</p>
+        <p>Creator: <strong>Mr. CHHEANG SINHSINH</strong></p>
+    `);
 });
 
-// --------------------------------------------------------------------------------
-// --- HELPER FUNCTION FOR API CALLS ---
-// --------------------------------------------------------------------------------
+// ==================================================================================
+// 🔧 HELPER FUNCTION FOR API CALLS
+// ==================================================================================
 async function generateMathResponse(contents) {
+    // ⚠️ ប្រើ API Key ពី Env
     const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY; 
-    if (!apiKey) throw new Error("API Key មិនត្រូវបានកំណត់។");
+    
+    if (!apiKey) {
+        throw new Error("API Key មិនត្រូវបានកំណត់។ សូមកំណត់ GEMINI_API_KEY នៅក្នុង Render Environment.");
+    }
 
+    // ហៅទៅ Google Gemini API
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${apiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -154,28 +248,33 @@ async function generateMathResponse(contents) {
     }
 
     const data = await response.json();
+    
+    // ទាញយកអត្ថបទចេញពីចម្លើយរបស់ AI
     return data.candidates?.[0]?.content?.parts?.[0]?.text;
 }
 
-// --------------------------------------------------------------------------------
-// --- 🛡️ RATE LIMITER CONFIGURATION ---
-// --------------------------------------------------------------------------------
-
+// ==================================================================================
+// 🛡️ RATE LIMITER CONFIGURATION (5 req / 4 hours)
+// ==================================================================================
+// កំណត់ IP ម្ចាស់ដើម្បីកុំអោយជាប់ Limit
 const OWNER_IP = process.env.OWNER_IP; 
 
 if (!OWNER_IP) {
-    console.log("⚠️ OWNER_IP មិនទាន់បានកំណត់។");
+    console.log("⚠️ OWNER_IP មិនទាន់បានកំណត់។ អ្នកនឹងជាប់ Limit ដូចគេឯង។");
 } else {
     console.log(`✅ OWNER_IP បានកំណត់។ IP នេះនឹងមិនជាប់ Limit ទេ: ${OWNER_IP}`);
 }
 
 const solverLimiter = rateLimit({
-    windowMs: 4 * 60 * 60 * 1000, // 4 ម៉ោង
-    max: 5, // 5 requests
+    windowMs: 4 * 60 * 60 * 1000, // រយៈពេល 4 ម៉ោង
+    max: 5, // អនុញ្ញាតអោយចុចបានតែ 5 ដង
     skip: (req, res) => {
-        // ប្រើ x-forwarded-for ដើម្បីចាប់ IP ពិតនៅលើ Render
+        // ប្រើ x-forwarded-for សម្រាប់ Render IP check
         const clientIp = req.headers['x-forwarded-for'] ? req.headers['x-forwarded-for'].split(',')[0] : req.ip;
+        
+        // បើ IP ត្រូវគ្នាជាមួយម្ចាស់ គឺអោយឆ្លងកាត់ (Skip Limit)
         if (OWNER_IP && clientIp.includes(OWNER_IP)) return true; 
+        
         return false; 
     },
     message: { error: "⚠️ អ្នកបានប្រើប្រាស់ចំនួនដោះស្រាយអស់ហើយ (5ដង/4ម៉ោង)។ សូមរង់ចាំ 4 ម៉ោងទៀត។" },
@@ -183,21 +282,22 @@ const solverLimiter = rateLimit({
     legacyHeaders: false, 
 });
 
-// --------------------------------------------------------------------------------
-// --- 1. MAIN SOLVER ROUTE (/api/solve-integral) ---
-// --------------------------------------------------------------------------------
-
+// ==================================================================================
+// 1. MAIN SOLVER ROUTE (/api/solve-integral)
+// ==================================================================================
+// នេះគឺជាកន្លែងដែលការគណនាកើតឡើង
 app.post('/api/solve-integral', solverLimiter, async (req, res) => {
     try {
         const { prompt } = req.body; 
         
-        // --- 📊 VISITOR TRACKING ---
+        // --- 📊 VISITOR TRACKING LOGIC ---
+        // កត់ត្រាចំនួនអ្នកចូលប្រើប្រាស់ប្រចាំថ្ងៃ
         const userIP = req.headers['x-forwarded-for'] || req.ip; 
         const userAgent = req.headers['user-agent'] || 'Unknown'; 
         const today = new Date().toISOString().substring(0, 10); 
 
         if (visitorsCollection) {
-            // Tracking មិនបាច់ await ដើម្បីកុំឱ្យយឺត
+            // Tracking (No Await ដើម្បីលឿន)
             visitorsCollection.updateOne(
                 { date: today }, 
                 { 
@@ -207,17 +307,22 @@ app.post('/api/solve-integral', solverLimiter, async (req, res) => {
                 { upsert: true }
             ).catch(err => console.error("Tracking Error:", err.message));
         }
+        // --- END TRACKING ---
 
-        // 🔥 Normalize Here 🔥
+        // 🔥 NORMALIZE INPUT 🔥
+        // ធ្វើអោយលំហាត់មានទម្រង់ស្តង់ដារ
         const normalizedPrompt = normalizeMathInput(prompt);
+        // បង្កើត Key សម្រាប់ Cache
         const cacheKey = Buffer.from(normalizedPrompt).toString('base64');
         
         // --- CACHE READ START ---
+        // ពិនិត្យមើលថាតើលំហាត់នេះមានក្នុង Database ហើយឬនៅ?
         if (cacheCollection) {
             try {
                 const cachedResult = await cacheCollection.findOne({ _id: cacheKey });
                 if (cachedResult) {
-                    console.log(`[CACHE HIT] "${normalizedPrompt}"`);
+                    console.log(`[CACHE HIT] Original: "${prompt}" -> Normalized: "${normalizedPrompt}"`);
+                    // បើមាន យកចម្លើយចាស់មកប្រើភ្លាមៗ
                     return res.json({ text: cachedResult.result_text, source: "cache" });
                 }
             } catch (err) {
@@ -226,7 +331,8 @@ app.post('/api/solve-integral', solverLimiter, async (req, res) => {
         }
         // --- CACHE READ END ---
         
-        console.log(`[AI CALL] "${normalizedPrompt}"`);
+        // បើគ្មានក្នុង Cache ទេ ហៅទៅ AI
+        console.log(`[AI CALL] Original: "${prompt}" -> Normalized: "${normalizedPrompt}"`);
         
         const contents = [{ 
             role: 'user', 
@@ -246,6 +352,7 @@ app.post('/api/solve-integral', solverLimiter, async (req, res) => {
         if (!resultText) return res.status(500).json({ error: "AI មិនបានផ្តល់ខ្លឹមសារទេ។" });
 
         // --- 🔥 CACHE WRITE START (ANTI-COLLISION FIX) 🔥 ---
+        // រក្សាទុកចម្លើយថ្មីទៅក្នុង Database
         if (cacheCollection) {
             try {
                 await cacheCollection.insertOne({
@@ -255,10 +362,11 @@ app.post('/api/solve-integral', solverLimiter, async (req, res) => {
                 });
                 console.log(`[CACHE WRITE SUCCESS]`);
             } catch (err) {
+                // 🛑 ការពារ SERVER ERROR ពេលចុចលឿនពេក 🛑
                 // ប្រសិនបើ Error Code 11000 (Duplicate Key) យើងមិនអើពើទេ
                 // ព្រោះមានន័យថា Request ផ្សេងទៀតបាន Save រួចហើយ
                 if (err.code === 11000) {
-                    console.warn(`[CACHE WRITE IGNORED] Duplicate key collision.`);
+                    console.warn(`[CACHE WRITE IGNORED] Key already exists (Collision avoided).`);
                 } else {
                     console.error("❌ CACHE WRITE FAILED:", err.message);
                 }
@@ -266,6 +374,7 @@ app.post('/api/solve-integral', solverLimiter, async (req, res) => {
         }
         // --- CACHE WRITE END ---
 
+        // ផ្ញើចម្លើយទៅ Frontend
         res.json({ text: resultText, source: "api" });
 
     } catch (error) {
@@ -274,9 +383,10 @@ app.post('/api/solve-integral', solverLimiter, async (req, res) => {
     }
 });
 
-// --------------------------------------------------------------------------------
-// --- 2. STATS ROUTE ---
-// --------------------------------------------------------------------------------
+// ==================================================================================
+// 2. STATS ROUTE (/api/daily-stats)
+// ==================================================================================
+// មើលស្ថិតិអ្នកប្រើប្រាស់
 app.get('/api/daily-stats', async (req, res) => {
     if (!visitorsCollection) {
         return res.status(503).json({ error: "Visitors tracking service unavailable." });
@@ -303,10 +413,10 @@ app.get('/api/daily-stats', async (req, res) => {
     }
 });
 
-// --------------------------------------------------------------------------------
-// --- 3. CHAT ROUTE (/api/chat) ---
-// --------------------------------------------------------------------------------
-
+// ==================================================================================
+// 3. CHAT ROUTE (/api/chat)
+// ==================================================================================
+// សម្រាប់មុខងារ Chatbot
 app.post('/api/chat', async (req, res) => {
     try {
         const { message, history } = req.body;
@@ -320,11 +430,27 @@ app.post('/api/chat', async (req, res) => {
     }
 });
 
+// ==================================================================================
+// 🏁 START SERVER
+// ==================================================================================
 async function startServer() {
-    await connectToDatabase();
+    console.log("----------------------------------------------------------------");
+    console.log("🚀 STARTING INTEGRAL CALCULATOR BACKEND (V23)...");
+    console.log("----------------------------------------------------------------");
+
+    // ភ្ជាប់ទៅ Database មុននឹងបើក Server
+    const isDbConnected = await connectToDatabase();
+    
+    if (!isDbConnected) {
+        console.warn("⚠️ Server កំពុងចាប់ផ្តើមដោយគ្មាន MongoDB caching (ឬ Connection Failed)។");
+    }
+    
     app.listen(PORT, () => {
-        console.log(`Server កំពុងដំណើរការលើ port ${PORT}`);
+        console.log(`\n🌐 Server កំពុងដំណើរការលើ port ${PORT}`);
+        console.log(`👉 Link: http://localhost:${PORT}`);
+        console.log("----------------------------------------------------------------");
     });
 }
 
+// ចាប់ផ្តើមកម្មវិធី
 startServer();
