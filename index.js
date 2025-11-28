@@ -1,4 +1,4 @@
-// index.js (Version: God-Mode + ULTIMATE Math Normalization + Rate Limit Bypass)
+// index.js (Version: God-Mode + ULTIMATE Math Normalization V7 - Division Fix)
 
 const express = require('express');
 const cors = require('cors');
@@ -52,12 +52,12 @@ async function connectToDatabase() {
     }
 }
 
-// --- 🧹 ULTIMATE SMART NORMALIZATION FUNCTION ---
-// មុខងារនេះធានាថារាល់ទម្រង់សមមូលគណិតវិទ្យា (Case, Power, Brackets) ត្រូវបានបង្រួបបង្រួមទៅជា Key តែមួយ។
+// --- 🧹 ULTIMATE SMART NORMALIZATION FUNCTION (V7 - Division Fix) ---
+// មុខងារនេះធានាថារាល់ទម្រង់សមមូលគណិតវិទ្យាត្រូវបានបង្រួបបង្រួមទៅជា Key តែមួយ។
 function normalizeMathInput(input) {
     if (!input) return "";
 
-    // 1. ប្តូរទៅជាអក្សរតូចទាំងអស់ (SINX -> sinx)
+    // 1. ប្តូរទៅជាអក្សរតូចទាំងអស់ (SINX/sinx)
     let cleaned = input.toLowerCase(); 
 
     // 2. ដក Space ស្ទួនចេញ
@@ -68,16 +68,34 @@ function normalizeMathInput(input) {
     cleaned = cleaned.replace(/²/g, '^2'); 
     cleaned = cleaned.replace(/³/g, '^3');
 
-    // 4. បង្រួបបង្រួមទម្រង់ (sin(x))^2 ទៅជា sin^2(x)
-    // ដើម្បីឱ្យ (sin x)^2 និង sin^2 x ដូចគ្នា
-    cleaned = cleaned.replace(/\(\s*([a-z]+)\s*([^\)]+)\s*\)\s*\^([0-9]+)/g, '$1^$3($2)');
-
-    // 5. លុបចោល Power 1 (^1) ទាំងស្រុង (ព្រោះ x^1 = x)
+    // 4. 🔥 លុបចោល Power 1 (^1) ទាំងស្រុង (សំខាន់សម្រាប់ករណី (sinx)^1/sinx)
     cleaned = cleaned.replace(/\^1/g, ''); 
+
+    // 5. 🔥 NEW FIX: Convert division of identical terms to 1 (A/A -> 1)
+    // ត្រូវធ្វើបន្ទាប់ពីលុប ^1 ដើម្បីឱ្យ (sinx)^1 ក្លាយជា sinx សិន
     
-    // 6. 🔥 លុបវង់ក្រចកដែលលើសលុបសម្រាប់ស្វ័យគុណសាមញ្ញ (sin^2(x) -> sin^2x)
-    // នេះធានាថាសំណួរទាំងអស់របស់អ្នកគឺដូចគ្នា។
-    cleaned = cleaned.replace(/([a-z]+)\^([0-9])\s*\(([^()]+)\)/g, '$1^$2$3'); 
+    // 5a. ករណីធម្មតា: A / A (sinx / sinx)
+    cleaned = cleaned.replace(/\b([a-z0-9]+)\s*\/\s*\1\b/g, '1');
+    
+    // 5b. ករណីមានវង់ក្រចកខាងមុខ: (A) / A
+    cleaned = cleaned.replace(/\(\s*([a-z0-9]+)\s*\)\s*\/\s*\1/g, '1');
+
+    // 5c. ករណីមានវង់ក្រចកខាងក្រោយ: A / (A)
+    cleaned = cleaned.replace(/([a-z0-9]+)\s*\/\s*\(\s*\1\s*\)/g, '1');
+
+    // 5d. ករណីមានវង់ក្រចកទាំងសងខាង: (A) / (A)
+    cleaned = cleaned.replace(/\(\s*([a-z0-9]+)\s*\)\s*\/\s*\(\s*\1\s*\)/g, '1');
+
+    // 6. Convert repeated multiplication (A * A) to exponent (A^2)
+    cleaned = cleaned.replace(/([a-z0-9]+)\s*\*\s*\1/g, '$1^2'); 
+
+    // 7. បង្រួបបង្រួមទម្រង់ (sin(x))^2 ទៅជា sin^2(x)
+    cleaned = cleaned.replace(/\(\s*([a-z]+)\s*([^\)]+)\s*\)\s*\^([0-9]+)/g, '$1^$3($2)');
+    
+    // 8. លុបវង់ក្រចកដែលលើសលុបសម្រាប់ស្វ័យគុណសាមញ្ញ (sin^2(x) -> sin^2x, (k)^2 -> k^2)
+    // ដោះស្រាយបញ្ហា (k)^2 ដែលអ្នកបានលើកឡើង
+    cleaned = cleaned.replace(/\(\s*([a-z])\s*\)\^/g, '$1^'); // (k)^2 -> k^2
+    cleaned = cleaned.replace(/([a-z]+)\^([0-9])\s*\(([^()]+)\)/g, '$1^$2$3'); // sin^2(x) -> sin^2x
 
     return cleaned.trim();
 }
@@ -152,18 +170,16 @@ if (!OWNER_IP) {
 }
 
 const solverLimiter = rateLimit({
-    windowMs: 4 * 60 * 60 * 1000, // 4 ម៉ោង (គិតជា milliseconds)
-    max: 5, // កំណត់អតិបរមា 5 ដង
+    windowMs: 4 * 60 * 60 * 1000, // 4 ម៉ោង
+    max: 5, // 5 ដងសម្រាប់មនុស្សទូទៅ
     
     // --- មុខងារពិសេសសម្រាប់ម្ចាស់ (SKIP) ---
     skip: (req, res) => {
-        // req.ip គឺជា IP របស់អ្នកប្រើបច្ចុប្បន្ន
-        // OWNER_IP គឺជា IP ដែលបានកំណត់ក្នុង Render Environment
         if (OWNER_IP && req.ip === OWNER_IP) {
             console.log(`[VIP ACCESS] Skipping Rate Limit for Owner: ${req.ip}`);
-            return true; // អនុញ្ញាតឱ្យឆ្លងកាត់ដោយគ្មាន Limit
+            return true; 
         }
-        return false; // ដាក់ Limit ធម្មតាសម្រាប់អ្នកផ្សេង
+        return false; 
     },
 
     message: { 
@@ -181,8 +197,7 @@ app.post('/api/solve-integral', solverLimiter, async (req, res) => {
     try {
         const { prompt } = req.body; 
         
-        // 🔥 ប្រើ Function Normalize នៅទីនេះ 🔥
-        // SINX, Sinx, sinx, sin²x, (sinx)² នឹងក្លាយជា Key តែមួយ
+        // 🔥 ប្រើ Function ថ្មីនៅទីនេះ 🔥
         const normalizedPrompt = normalizeMathInput(prompt);
         const cacheKey = Buffer.from(normalizedPrompt).toString('base64');
         
