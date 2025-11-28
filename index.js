@@ -1,4 +1,4 @@
-// index.js (V17 Modified: God-Mode + Cloudflare CORS Fix)
+// index.js (FINAL FIX V19: CORS + URI Loading Fix)
 
 const express = require('express');
 const cors = require('cors');
@@ -19,24 +19,21 @@ const PORT = process.env.PORT || 10000;
 app.set('trust proxy', 1);
 
 // ==========================================
-// 🔥 CORS FIX FOR CLOUDFLARE (MODIFIED HERE)
+// 🔥 CORS FIX FOR CLOUDFLARE (THE REAL FIX)
 // ==========================================
 const allowedOrigins = [
     'https://integralcalculator.site',       // ✅ Cloudflare Frontend
     'https://www.integralcalculator.site',   // ✅ Cloudflare Frontend (WWW)
     'https://sinh-1.onrender.com',           // ✅ Backend Itself
     'http://localhost:3000',                 // Local Testing
-    'http://127.0.0.1:5500'                  // Live Server
 ];
 
 app.use(cors({
     origin: function (origin, callback) {
-        // អនុញ្ញាត Request ដែលគ្មាន Origin (Mobile Apps, Curl, Postman)
         if (!origin) return callback(null, true);
-        
         if (allowedOrigins.indexOf(origin) === -1) {
-            // ដើម្បីសុវត្ថិភាព យើងគួរ Block ប៉ុន្តែដើម្បីការពារ Error ពេលនេះ យើង Allow
-            return callback(null, true); 
+             // ឥឡូវនេះយើងនឹងអនុញ្ញាតរហូតដល់យើងអាចពិនិត្យកូដផ្សេងទៀត
+             return callback(null, true); 
         }
         return callback(null, true);
     },
@@ -49,9 +46,8 @@ app.use(express.json());
 // --- Configuration ---
 const MODEL_NAME = 'gemini-2.5-flash';
 
-// --- 🧠 MONGODB CONNECTION SETUP ---
-// ⚠️ ចំណាំ: ខ្ញុំបានប្តូរទៅប្រើ process.env ដើម្បីសុវត្ថិភាព។ 
-// ប្រសិនបើអ្នកចង់ប្រើ hardcode សូមប្តូរត្រង់នេះវិញ ប៉ុន្តែមិនណែនាំទេ។
+// --- 🧠 MONGODB CONNECTION SETUP (Simplified Loading) ---
+// ⚠️ ប្រើ process.env.MONGODB_URI ព្រោះវានៅលើ Render
 const uri = process.env.MONGODB_URI || "mongodb+srv://testuser:testpass@cluster0.chyfb9f.mongodb.net/?appName=Cluster0"; 
 
 const client = new MongoClient(uri);
@@ -62,7 +58,8 @@ let visitorsCollection;
 // ភ្ជាប់ទៅ Database
 async function connectToDatabase() {
     if (!uri || uri.includes("testuser:testpass")) {
-        console.warn("⚠️ MONGODB_URI ហាក់ដូចជាមិនត្រឹមត្រូវ (Default)។ Cache អាចនឹងមិនដំណើរការ។");
+        console.warn("⚠️ MONGODB_URI មិនត្រូវបានកំណត់ត្រឹមត្រូវ។ Cache ត្រូវបានបិទ។");
+        return false;
     }
     try {
         await client.connect(); 
@@ -75,7 +72,7 @@ async function connectToDatabase() {
         console.log("✅ MongoDB Connection ជោគជ័យ។ Cache & Tracking រួចរាល់។");
         return true;
     } catch (e) {
-        console.error("❌ MONGODB FATAL Connection បរាជ័យ។", e.message);
+        console.error("❌ MONGODB FATAL Connection បរាជ័យ។ សូមពិនិត្យ Network Access នៅ MongoDB Atlas។", e.message);
         cacheCollection = null; 
         visitorsCollection = null;
         return false;
@@ -86,36 +83,19 @@ async function connectToDatabase() {
 function normalizeMathInput(input) {
     if (!input) return "";
 
-    // 1. ប្តូរទៅជាអក្សរតូចទាំងអស់
     let cleaned = input.toLowerCase(); 
-
-    // 2. KILL ALL SPACES
     cleaned = cleaned.replace(/\s/g, ''); 
-
-    // 3. ប្តូរលេខស្វ័យគុណ Unicode ទាំងអស់ (⁰-⁹) ទៅជាលេខធម្មតា (0-9)
     cleaned = cleaned.replace(/⁰/g, '0').replace(/¹/g, '1').replace(/²/g, '2').replace(/³/g, '3').replace(/⁴/g, '4').replace(/⁵/g, '5').replace(/⁶/g, '6').replace(/⁷/g, '7').replace(/⁸/g, '8').replace(/⁹/g, '9');
-    
-    // 4. IMPLICIT POWER FIX (f41x -> f^41x)
     cleaned = cleaned.replace(/([a-z]+)([0-9]+)(\()/g, '$1^$2$3'); 
     cleaned = cleaned.replace(/([a-z]+)([0-9]+)([a-z])/g, '$1^$2$3'); 
-
-    // 5. CONSOLIDATION FIX
     cleaned = cleaned.replace(/\(([a-z]+)([^\)]+)\)\^([0-9]+)/g, '$1^$3$2'); 
     cleaned = cleaned.replace(/([a-z]+)\^([0-9]+)\(([^()]+)\)/g, '$1^$2$3'); 
-
-    // 6. DIVISION FIX (A/A -> 1)
     cleaned = cleaned.replace(/([a-z0-9]+)\/\1/g, '1'); 
     cleaned = cleaned.replace(/\(([a-z0-9]+)\)\/\1/g, '1');
     cleaned = cleaned.replace(/([a-z0-9]+)\/\(([a-z0-9]+)\)/g, '1');
     cleaned = cleaned.replace(/\(([a-z0-9]+)\)\/\(([a-z0-9]+)\)/g, '1');
-
-    // 7. MULTIPLICATION FIX (A * A -> A^2)
     cleaned = cleaned.replace(/([a-z0-9]+)\*\1/g, '$1^2'); 
-
-    // 8. ដោះវង់ក្រចកចេញពីអក្សរតែមួយដែលស្វ័យគុណ ((k)^2 -> k^2)
     cleaned = cleaned.replace(/\(([a-z])\)\^/g, '$1^');
-
-    // 9. 🔥 BULLETPROOF POWER 1 REMOVAL (V17) 🔥
     cleaned = cleaned.replace(/\^1([a-z])/g, '$1'); 
     cleaned = cleaned.replace(/\^1\(/g, '(');
 
@@ -148,19 +128,13 @@ const MATH_ASSISTANT_PERSONA = {
 // Health Check Route
 app.get('/', (req, res) => {
     const dbStatus = cacheCollection ? "Connected ✅ (Caching Active)" : "Disconnected ❌ (Caching Disabled)";
-    res.json({
-        status: "Online",
-        message: "Math Assistant (gemini-2.5-flash) is Ready!",
-        db_status: dbStatus,
-        cors_allowed: allowedOrigins
-    });
+    res.send(`✅ Math Assistant (gemini-2.5-flash) is Ready! DB Cache Status: ${dbStatus}`);
 });
 
 // --------------------------------------------------------------------------------
 // --- HELPER FUNCTION FOR API CALLS ---
 // --------------------------------------------------------------------------------
 async function generateMathResponse(contents) {
-    // ⚠️ ប្រើ process.env ជំនួស hardcode ដើម្បីសុវត្ថិភាព
     const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY; 
     if (!apiKey) throw new Error("API Key មិនត្រូវបានកំណត់។ សូមកំណត់ GEMINI_API_KEY នៅក្នុង Render Environment.");
 
@@ -196,15 +170,15 @@ const OWNER_IP = process.env.OWNER_IP;
 if (!OWNER_IP) {
     console.log("⚠️ OWNER_IP មិនទាន់បានកំណត់។ អ្នកនឹងជាប់ Limit ដូចគេឯង។");
 } else {
-    console.log(`✅ OWNER_IP បានកំណត់។ IP នេះនឹងមិនជាប់ Limit ទេ: ${OWNER_IP}`);
+    console.log(`✅ OWNER_IP បានកំណត់។ IP នេះនឹងមិនជាប់ Limit ទេ: ${OWNESR_IP}`);
 }
 
 const solverLimiter = rateLimit({
     windowMs: 4 * 60 * 60 * 1000, 
     max: 5, 
     skip: (req, res) => {
-        // ពិនិត្យ IP សម្រាប់ Render (x-forwarded-for)
-        const clientIp = req.headers['x-forwarded-for'] || req.ip;
+        // ប្រើ x-forwarded-for សម្រាប់ Render IP check
+        const clientIp = req.headers['x-forwarded-for'] ? req.headers['x-forwarded-for'].split(',')[0] : req.ip;
         if (OWNER_IP && clientIp.includes(OWNER_IP)) return true; 
         return false; 
     },
