@@ -1,4 +1,4 @@
-// index.js (Final Version V14: God-Mode + ULTIMATE Normalization + TRACKING SYSTEM)
+// index.js (Final Version V15: God-Mode + ULTIMATE Normalization + CRITICAL POWER 1 FIX)
 
 const express = require('express');
 const cors = require('cors');
@@ -30,7 +30,7 @@ const uri = "mongodb+srv://testuser:testpass@cluster0.chyfb9f.mongodb.net/?appNa
 const client = new MongoClient(uri);
 
 let cacheCollection; 
-let visitorsCollection; // <--- បន្ថែមថ្មី៖ សម្រាប់រក្សាទុកទិន្នន័យអ្នកចូលមើល
+let visitorsCollection; // សម្រាប់តាមដានអ្នកប្រើប្រាស់
 
 // ភ្ជាប់ទៅ Database
 async function connectToDatabase() {
@@ -43,7 +43,7 @@ async function connectToDatabase() {
         const database = client.db("GeminiMathCache"); 
         
         cacheCollection = database.collection("solutions"); 
-        visitorsCollection = database.collection("daily_visitors"); // <--- បន្ថែមថ្មី
+        visitorsCollection = database.collection("daily_visitors"); 
 
         await cacheCollection.estimatedDocumentCount();
         console.log("✅ MongoDB Connection ជោគជ័យ។ Cache & Tracking រួចរាល់។");
@@ -56,7 +56,7 @@ async function connectToDatabase() {
     }
 }
 
-// --- 🧹 ULTIMATE SMART NORMALIZATION FUNCTION (V13 Logic Kept Intact) ---
+// --- 🧹 ULTIMATE SMART NORMALIZATION FUNCTION (V15 - FINAL SAFE FIX) ---
 function normalizeMathInput(input) {
     if (!input) return "";
 
@@ -70,12 +70,12 @@ function normalizeMathInput(input) {
     cleaned = cleaned.replace(/⁰/g, '0').replace(/¹/g, '1').replace(/²/g, '2').replace(/³/g, '3').replace(/⁴/g, '4').replace(/⁵/g, '5').replace(/⁶/g, '6').replace(/⁷/g, '7').replace(/⁸/g, '8').replace(/⁹/g, '9');
     
     // 4. IMPLICIT POWER FIX (f21x -> f^21x)
-    cleaned = cleaned.replace(/([a-z]+)([0-9]+)(\()/g, '$1^$2$3');
-    cleaned = cleaned.replace(/([a-z]+)([0-9]+)([a-z])/g, '$1^$2$3');
+    cleaned = cleaned.replace(/([a-z]+)([0-9]+)(\()/g, '$1^$2$3'); // f21(x)
+    cleaned = cleaned.replace(/([a-z]+)([0-9]+)([a-z])/g, '$1^$2$3'); // f21x
 
     // 5. CONSOLIDATION FIX
-    cleaned = cleaned.replace(/\(([a-z]+)([^\)]+)\)\^([0-9]+)/g, '$1^$3$2');
-    cleaned = cleaned.replace(/([a-z]+)\^([0-9]+)\(([^()]+)\)/g, '$1^$2$3');
+    cleaned = cleaned.replace(/\(([a-z]+)([^\)]+)\)\^([0-9]+)/g, '$1^$3$2'); // (sinx)^n -> sin^n x
+    cleaned = cleaned.replace(/([a-z]+)\^([0-9]+)\(([^()]+)\)/g, '$1^$2$3'); // sin^n(x) -> sin^n x
 
     // 6. DIVISION FIX (A/A -> 1)
     cleaned = cleaned.replace(/([a-z0-9]+)\/\1/g, '1'); 
@@ -89,8 +89,11 @@ function normalizeMathInput(input) {
     // 8. ដោះវង់ក្រចកចេញពីអក្សរតែមួយដែលស្វ័យគុណ ((k)^2 -> k^2)
     cleaned = cleaned.replace(/\(([a-z])\)\^/g, '$1^');
 
-    // 9. SAFE POWER 1 REMOVAL (V13 Fix)
-    cleaned = cleaned.replace(/\^1(?![0-9])/g, ''); 
+    // 9. 🔥 CRITICAL SAFE POWER 1 REMOVAL (FINAL FIX FOR 10, 11, 12, 17...) 🔥
+    // 9a. លុប ^1 បើ Argument តាម (x ឫ ()
+    cleaned = cleaned.replace(/\^1([a-z\(])/g, '$1'); 
+    // 9b. លុប ^1 បើវាជាតួចុងក្រោយនៃ Input
+    cleaned = cleaned.replace(/\^1$/g, ''); 
 
     return cleaned.trim();
 }
@@ -183,7 +186,7 @@ app.post('/api/solve-integral', solverLimiter, async (req, res) => {
     try {
         const { prompt } = req.body; 
         
-        // --- 📊 VISITOR TRACKING LOGIC (ADDED HERE) ---
+        // --- 📊 VISITOR TRACKING LOGIC ---
         const userIP = req.ip; 
         const userAgent = req.headers['user-agent'] || 'Unknown'; 
         const today = new Date().toISOString().substring(0, 10); 
@@ -253,7 +256,7 @@ app.post('/api/solve-integral', solverLimiter, async (req, res) => {
 });
 
 // --------------------------------------------------------------------------------
-// --- 2. STATS ROUTE (NEW) ---
+// --- 2. STATS ROUTE ---
 // --------------------------------------------------------------------------------
 app.get('/api/daily-stats', async (req, res) => {
     if (!visitorsCollection) {
