@@ -1,4 +1,4 @@
-// index.js (V17: Original God-Mode + Cloudflare CORS Fix ONLY)
+// index.js (Final Version V20: God-Mode + CORS Fix + Anti-Collision Cache)
 
 const express = require('express');
 const cors = require('cors');
@@ -19,9 +19,8 @@ const PORT = process.env.PORT || 10000;
 app.set('trust proxy', 1);
 
 // ==========================================
-// 🔥 START OF CORS MODIFICATION 🔥
+// 🔥 CORS CONFIGURATION (CLOUDFLARE FIX)
 // ==========================================
-// យើងកែតែផ្នែកនេះមួយគត់ ដើម្បីឱ្យ Cloudflare ដំណើរការ
 const allowedOrigins = [
     'https://integralcalculator.site',       // ✅ Cloudflare Frontend
     'https://www.integralcalculator.site',   // ✅ Cloudflare Frontend (WWW)
@@ -31,25 +30,13 @@ const allowedOrigins = [
 
 app.use(cors({
     origin: function (origin, callback) {
-        // អនុញ្ញាត Request ដែលគ្មាន Origin (Mobile Apps, Curl)
         if (!origin) return callback(null, true);
-        
-        // ពិនិត្យមើលថាតើ Origin ស្ថិតក្នុងបញ្ជីអនុញ្ញាតដែរឬទេ
-        if (allowedOrigins.indexOf(origin) !== -1) {
-            return callback(null, true);
-        } else {
-            // ដើម្បីកុំឱ្យមាន Error អីផ្សេង យើង Allow ទាំងអស់បណ្តោះអាសន្ន
-            // (នេះជាវិធីដែលមានសុវត្ថិភាពបំផុតដើម្បីធានាថាវាដំណើរការ)
-            return callback(null, true);
-        }
+        // Allow all for now to prevent blocking, secure later if needed
+        return callback(null, true);
     },
     methods: ['GET', 'POST', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-    credentials: true
+    allowedHeaders: ['Content-Type', 'Authorization']
 }));
-// ==========================================
-// 🔥 END OF CORS MODIFICATION 🔥
-// ==========================================
 
 app.use(express.json());
 
@@ -57,8 +44,8 @@ app.use(express.json());
 const MODEL_NAME = 'gemini-2.5-flash';
 
 // --- 🧠 MONGODB CONNECTION SETUP ---
-// ⚠️⚠️⚠️ ដាក់ Link MongoDB របស់អ្នកនៅទីនេះ (ជំនួស testuser:testpass) ⚠️⚠️⚠️
-const uri = "mongodb+srv://testuser:testpass@cluster0.chyfb9f.mongodb.net/?appName=Cluster0"; 
+// ⚠️ ប្រើ process.env.MONGODB_URI សម្រាប់ Render
+const uri = process.env.MONGODB_URI || "mongodb+srv://testuser:testpass@cluster0.chyfb9f.mongodb.net/?appName=Cluster0"; 
 
 const client = new MongoClient(uri);
 
@@ -67,9 +54,9 @@ let visitorsCollection;
 
 // ភ្ជាប់ទៅ Database
 async function connectToDatabase() {
-    if (!uri) {
-        console.warn("⚠️ MONGODB_URI មិនត្រូវបានកំណត់។ Cache ត្រូវបានបិទ។");
-        return false;
+    if (!uri || uri.includes("testuser:testpass")) {
+        console.warn("⚠️ MONGODB_URI មិនត្រូវបានកំណត់ត្រឹមត្រូវ។ Cache ត្រូវបានបិទ។");
+        // យើងមិន return false ទេ អនុញ្ញាតឱ្យវាដំណើរការដោយគ្មាន cache
     }
     try {
         await client.connect(); 
@@ -78,61 +65,34 @@ async function connectToDatabase() {
         cacheCollection = database.collection("solutions"); 
         visitorsCollection = database.collection("daily_visitors"); 
 
-        await cacheCollection.estimatedDocumentCount();
         console.log("✅ MongoDB Connection ជោគជ័យ។ Cache & Tracking រួចរាល់។");
         return true;
     } catch (e) {
-        console.error("❌ MONGODB FATAL Connection បរាជ័យ។", e.message);
+        console.error("❌ MONGODB FATAL Connection បរាជ័យ:", e.message);
         cacheCollection = null; 
         visitorsCollection = null;
         return false;
     }
 }
 
-// --- 🧹 ULTIMATE SMART NORMALIZATION FUNCTION (V17 - FINAL FIX) ---
+// --- 🧹 ULTIMATE SMART NORMALIZATION FUNCTION (V17 Logic) ---
 function normalizeMathInput(input) {
     if (!input) return "";
 
-    // 1. ប្តូរទៅជាអក្សរតូចទាំងអស់
     let cleaned = input.toLowerCase(); 
-
-    // 2. KILL ALL SPACES
     cleaned = cleaned.replace(/\s/g, ''); 
-
-    // 3. ប្តូរលេខស្វ័យគុណ Unicode ទាំងអស់ (⁰-⁹) ទៅជាលេខធម្មតា (0-9)
     cleaned = cleaned.replace(/⁰/g, '0').replace(/¹/g, '1').replace(/²/g, '2').replace(/³/g, '3').replace(/⁴/g, '4').replace(/⁵/g, '5').replace(/⁶/g, '6').replace(/⁷/g, '7').replace(/⁸/g, '8').replace(/⁹/g, '9');
-    
-    // 4. IMPLICIT POWER FIX (f41x -> f^41x)
-    // ប្រើ Greedy capture ([0-9]+) ដើម្បីធានាថាចាប់បានលេខទាំងអស់ (41, 14, 11)
-    cleaned = cleaned.replace(/([a-z]+)([0-9]+)(\()/g, '$1^$2$3'); // f41(x) -> f^41(x)
-    cleaned = cleaned.replace(/([a-z]+)([0-9]+)([a-z])/g, '$1^$2$3'); // f41x -> f^41x
-
-    // 5. CONSOLIDATION FIX
-    cleaned = cleaned.replace(/\(([a-z]+)([^\)]+)\)\^([0-9]+)/g, '$1^$3$2'); // (sinx)^n -> sin^n x
-    cleaned = cleaned.replace(/([a-z]+)\^([0-9]+)\(([^()]+)\)/g, '$1^$2$3'); // sin^n(x) -> sin^n x
-
-    // 6. DIVISION FIX (A/A -> 1)
+    cleaned = cleaned.replace(/([a-z]+)([0-9]+)(\()/g, '$1^$2$3'); 
+    cleaned = cleaned.replace(/([a-z]+)([0-9]+)([a-z])/g, '$1^$2$3'); 
+    cleaned = cleaned.replace(/\(([a-z]+)([^\)]+)\)\^([0-9]+)/g, '$1^$3$2'); 
+    cleaned = cleaned.replace(/([a-z]+)\^([0-9]+)\(([^()]+)\)/g, '$1^$2$3'); 
     cleaned = cleaned.replace(/([a-z0-9]+)\/\1/g, '1'); 
     cleaned = cleaned.replace(/\(([a-z0-9]+)\)\/\1/g, '1');
     cleaned = cleaned.replace(/([a-z0-9]+)\/\(([a-z0-9]+)\)/g, '1');
     cleaned = cleaned.replace(/\(([a-z0-9]+)\)\/\(([a-z0-9]+)\)/g, '1');
-
-    // 7. MULTIPLICATION FIX (A * A -> A^2)
     cleaned = cleaned.replace(/([a-z0-9]+)\*\1/g, '$1^2'); 
-
-    // 8. ដោះវង់ក្រចកចេញពីអក្សរតែមួយដែលស្វ័យគុណ ((k)^2 -> k^2)
     cleaned = cleaned.replace(/\(([a-z])\)\^/g, '$1^');
-
-    // 9. 🔥 BULLETPROOF POWER 1 REMOVAL (V17) 🔥
-    // យើងលុប ^1 លុះត្រាតែវាត្រូវបានតាមដោយ "អក្សរ" ឬ "វង់ក្រចក" ប៉ុណ្ណោះ។
-    // ប្រសិនបើវាត្រូវបានតាមដោយលេខ (ដូចជា ^14), Regex នេះនឹងមិនដំណើរការទេ។
-    
-    // 9a. sin^1x -> sinx (លុបព្រោះ x ជាអក្សរ)
-    // 9b. sin^14x -> sin^14x (អត់លុបព្រោះ 4 ជាលេខ, មិនមែនអក្សរ)
-    // 9c. sin^41x -> sin^41x (អត់លុបព្រោះគ្មាន ^1 នៅខាងមុខ)
     cleaned = cleaned.replace(/\^1([a-z])/g, '$1'); 
-    
-    // 9d. sin^1(x) -> sin(x) (លុបព្រោះ ( ជាវង់ក្រចក)
     cleaned = cleaned.replace(/\^1\(/g, '(');
 
     return cleaned.trim();
@@ -163,16 +123,16 @@ const MATH_ASSISTANT_PERSONA = {
 
 // Health Check Route
 app.get('/', (req, res) => {
-    const dbStatus = cacheCollection ? "Connected ✅ (Caching Active)" : "Disconnected ❌ (Caching Disabled)";
-    res.send(`✅ Math Assistant (gemini-2.5-flash) is Ready! DB Cache Status: ${dbStatus}`);
+    const dbStatus = cacheCollection ? "Connected ✅" : "Disconnected ❌";
+    res.send(`✅ Math Assistant (gemini-2.5-flash) is Ready! DB Status: ${dbStatus}`);
 });
 
 // --------------------------------------------------------------------------------
 // --- HELPER FUNCTION FOR API CALLS ---
 // --------------------------------------------------------------------------------
 async function generateMathResponse(contents) {
-    const apiKey = process.env.GEMINI_API_KEY; 
-    if (!apiKey) throw new Error("API Key មិនត្រូវបានកំណត់។ សូមកំណត់ GEMINI_API_KEY នៅក្នុង Render Environment.");
+    const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY; 
+    if (!apiKey) throw new Error("API Key មិនត្រូវបានកំណត់។");
 
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${apiKey}`, {
         method: 'POST',
@@ -186,6 +146,9 @@ async function generateMathResponse(contents) {
     });
 
     if (!response.ok) {
+        if (response.status === 429) {
+             throw new Error("GOOGLE_QUOTA_EXCEEDED");
+        }
         const errorData = await response.json().catch(() => ({})); 
         throw new Error(`Gemini API Error (${response.status}): ${errorData.error ? errorData.error.message : 'Unknown error'}`);
     }
@@ -195,22 +158,24 @@ async function generateMathResponse(contents) {
 }
 
 // --------------------------------------------------------------------------------
-// --- 🛡️ RATE LIMITER CONFIGURATION (5 req / 4 hours) ---
+// --- 🛡️ RATE LIMITER CONFIGURATION ---
 // --------------------------------------------------------------------------------
 
 const OWNER_IP = process.env.OWNER_IP; 
 
 if (!OWNER_IP) {
-    console.log("⚠️ OWNER_IP មិនទាន់បានកំណត់។ អ្នកនឹងជាប់ Limit ដូចគេឯង។");
+    console.log("⚠️ OWNER_IP មិនទាន់បានកំណត់។");
 } else {
     console.log(`✅ OWNER_IP បានកំណត់។ IP នេះនឹងមិនជាប់ Limit ទេ: ${OWNER_IP}`);
 }
 
 const solverLimiter = rateLimit({
-    windowMs: 4 * 60 * 60 * 1000, 
-    max: 5, 
+    windowMs: 4 * 60 * 60 * 1000, // 4 ម៉ោង
+    max: 5, // 5 requests
     skip: (req, res) => {
-        if (OWNER_IP && req.ip === OWNER_IP) return true; 
+        // ប្រើ x-forwarded-for ដើម្បីចាប់ IP ពិតនៅលើ Render
+        const clientIp = req.headers['x-forwarded-for'] ? req.headers['x-forwarded-for'].split(',')[0] : req.ip;
+        if (OWNER_IP && clientIp.includes(OWNER_IP)) return true; 
         return false; 
     },
     message: { error: "⚠️ អ្នកបានប្រើប្រាស់ចំនួនដោះស្រាយអស់ហើយ (5ដង/4ម៉ោង)។ សូមរង់ចាំ 4 ម៉ោងទៀត។" },
@@ -226,22 +191,22 @@ app.post('/api/solve-integral', solverLimiter, async (req, res) => {
     try {
         const { prompt } = req.body; 
         
-        // --- 📊 VISITOR TRACKING LOGIC ---
-        const userIP = req.ip; 
+        // --- 📊 VISITOR TRACKING ---
+        const userIP = req.headers['x-forwarded-for'] || req.ip; 
         const userAgent = req.headers['user-agent'] || 'Unknown'; 
         const today = new Date().toISOString().substring(0, 10); 
 
         if (visitorsCollection) {
-            await visitorsCollection.updateOne(
+            // Tracking មិនបាច់ await ដើម្បីកុំឱ្យយឺត
+            visitorsCollection.updateOne(
                 { date: today }, 
                 { 
                     $addToSet: { unique_ips: userIP }, 
                     $set: { last_agent_sample: userAgent } 
                 },
                 { upsert: true }
-            );
+            ).catch(err => console.error("Tracking Error:", err.message));
         }
-        // --- END TRACKING ---
 
         // 🔥 Normalize Here 🔥
         const normalizedPrompt = normalizeMathInput(prompt);
@@ -252,8 +217,8 @@ app.post('/api/solve-integral', solverLimiter, async (req, res) => {
             try {
                 const cachedResult = await cacheCollection.findOne({ _id: cacheKey });
                 if (cachedResult) {
-                    console.log(`[CACHE HIT] Original: "${prompt}" -> Normalized: "${normalizedPrompt}"`);
-                    return res.json({ text: cachedResult.result_text });
+                    console.log(`[CACHE HIT] "${normalizedPrompt}"`);
+                    return res.json({ text: cachedResult.result_text, source: "cache" });
                 }
             } catch (err) {
                 console.error("❌ CACHE READ FAILED:", err.message);
@@ -261,18 +226,26 @@ app.post('/api/solve-integral', solverLimiter, async (req, res) => {
         }
         // --- CACHE READ END ---
         
-        console.log(`[AI CALL] Original: "${prompt}" -> Normalized: "${normalizedPrompt}"`);
+        console.log(`[AI CALL] "${normalizedPrompt}"`);
         
         const contents = [{ 
             role: 'user', 
             parts: [{ text: `Solve this math problem in detail: ${prompt}` }] 
         }];
 
-        const resultText = await generateMathResponse(contents);
+        let resultText;
+        try {
+            resultText = await generateMathResponse(contents);
+        } catch (apiError) {
+             if (apiError.message === "GOOGLE_QUOTA_EXCEEDED") {
+                return res.status(429).json({ error: "Daily Quota Exceeded. Please try again tomorrow." });
+            }
+            throw apiError;
+        }
 
         if (!resultText) return res.status(500).json({ error: "AI មិនបានផ្តល់ខ្លឹមសារទេ។" });
 
-        // --- CACHE WRITE START ---
+        // --- 🔥 CACHE WRITE START (ANTI-COLLISION FIX) 🔥 ---
         if (cacheCollection) {
             try {
                 await cacheCollection.insertOne({
@@ -282,12 +255,18 @@ app.post('/api/solve-integral', solverLimiter, async (req, res) => {
                 });
                 console.log(`[CACHE WRITE SUCCESS]`);
             } catch (err) {
-                if (err.code !== 11000) console.error("❌ CACHE WRITE FAILED:", err.message);
+                // ប្រសិនបើ Error Code 11000 (Duplicate Key) យើងមិនអើពើទេ
+                // ព្រោះមានន័យថា Request ផ្សេងទៀតបាន Save រួចហើយ
+                if (err.code === 11000) {
+                    console.warn(`[CACHE WRITE IGNORED] Duplicate key collision.`);
+                } else {
+                    console.error("❌ CACHE WRITE FAILED:", err.message);
+                }
             }
         }
         // --- CACHE WRITE END ---
 
-        res.json({ text: resultText });
+        res.json({ text: resultText, source: "api" });
 
     } catch (error) {
         console.error("SOLVER ERROR:", error.message);
@@ -310,8 +289,8 @@ app.get('/api/daily-stats', async (req, res) => {
 
         const stats = dailyData.map(doc => ({
             date: doc.date,
-            unique_users_count: doc.unique_ips.length,
-            sample_device: doc.last_agent_sample.substring(0, 100) + '...'
+            unique_users_count: doc.unique_ips ? doc.unique_ips.length : 0,
+            sample_device: doc.last_agent_sample ? doc.last_agent_sample.substring(0, 100) + '...' : 'N/A'
         }));
 
         res.json({
@@ -342,12 +321,9 @@ app.post('/api/chat', async (req, res) => {
 });
 
 async function startServer() {
-    const isDbConnected = await connectToDatabase();
-    if (!isDbConnected) console.warn("Server កំពុងចាប់ផ្តើមដោយគ្មាន MongoDB caching។");
-    
+    await connectToDatabase();
     app.listen(PORT, () => {
         console.log(`Server កំពុងដំណើរការលើ port ${PORT}`);
-        console.log(`Access: https://smart-sinh-i.onrender.com`);
     });
 }
 
