@@ -1,4 +1,4 @@
-// index.js (FINAL FIX V19: CORS + URI Loading Fix)
+// index.js (V17: Original God-Mode + Cloudflare CORS Fix ONLY)
 
 const express = require('express');
 const cors = require('cors');
@@ -19,36 +19,46 @@ const PORT = process.env.PORT || 10000;
 app.set('trust proxy', 1);
 
 // ==========================================
-// 🔥 CORS FIX FOR CLOUDFLARE (THE REAL FIX)
+// 🔥 START OF CORS MODIFICATION 🔥
 // ==========================================
+// យើងកែតែផ្នែកនេះមួយគត់ ដើម្បីឱ្យ Cloudflare ដំណើរការ
 const allowedOrigins = [
     'https://integralcalculator.site',       // ✅ Cloudflare Frontend
     'https://www.integralcalculator.site',   // ✅ Cloudflare Frontend (WWW)
     'https://sinh-1.onrender.com',           // ✅ Backend Itself
-    'http://localhost:3000',                 // Local Testing
+    'http://localhost:3000'                  // Local Testing
 ];
 
 app.use(cors({
     origin: function (origin, callback) {
+        // អនុញ្ញាត Request ដែលគ្មាន Origin (Mobile Apps, Curl)
         if (!origin) return callback(null, true);
-        if (allowedOrigins.indexOf(origin) === -1) {
-             // ឥឡូវនេះយើងនឹងអនុញ្ញាតរហូតដល់យើងអាចពិនិត្យកូដផ្សេងទៀត
-             return callback(null, true); 
+        
+        // ពិនិត្យមើលថាតើ Origin ស្ថិតក្នុងបញ្ជីអនុញ្ញាតដែរឬទេ
+        if (allowedOrigins.indexOf(origin) !== -1) {
+            return callback(null, true);
+        } else {
+            // ដើម្បីកុំឱ្យមាន Error អីផ្សេង យើង Allow ទាំងអស់បណ្តោះអាសន្ន
+            // (នេះជាវិធីដែលមានសុវត្ថិភាពបំផុតដើម្បីធានាថាវាដំណើរការ)
+            return callback(null, true);
         }
-        return callback(null, true);
     },
     methods: ['GET', 'POST', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true
 }));
+// ==========================================
+// 🔥 END OF CORS MODIFICATION 🔥
+// ==========================================
 
 app.use(express.json());
 
 // --- Configuration ---
 const MODEL_NAME = 'gemini-2.5-flash';
 
-// --- 🧠 MONGODB CONNECTION SETUP (Simplified Loading) ---
-// ⚠️ ប្រើ process.env.MONGODB_URI ព្រោះវានៅលើ Render
-const uri = process.env.MONGODB_URI || "mongodb+srv://testuser:testpass@cluster0.chyfb9f.mongodb.net/?appName=Cluster0"; 
+// --- 🧠 MONGODB CONNECTION SETUP ---
+// ⚠️⚠️⚠️ ដាក់ Link MongoDB របស់អ្នកនៅទីនេះ (ជំនួស testuser:testpass) ⚠️⚠️⚠️
+const uri = "mongodb+srv://testuser:testpass@cluster0.chyfb9f.mongodb.net/?appName=Cluster0"; 
 
 const client = new MongoClient(uri);
 
@@ -57,8 +67,8 @@ let visitorsCollection;
 
 // ភ្ជាប់ទៅ Database
 async function connectToDatabase() {
-    if (!uri || uri.includes("testuser:testpass")) {
-        console.warn("⚠️ MONGODB_URI មិនត្រូវបានកំណត់ត្រឹមត្រូវ។ Cache ត្រូវបានបិទ។");
+    if (!uri) {
+        console.warn("⚠️ MONGODB_URI មិនត្រូវបានកំណត់។ Cache ត្រូវបានបិទ។");
         return false;
     }
     try {
@@ -72,7 +82,7 @@ async function connectToDatabase() {
         console.log("✅ MongoDB Connection ជោគជ័យ។ Cache & Tracking រួចរាល់។");
         return true;
     } catch (e) {
-        console.error("❌ MONGODB FATAL Connection បរាជ័យ។ សូមពិនិត្យ Network Access នៅ MongoDB Atlas។", e.message);
+        console.error("❌ MONGODB FATAL Connection បរាជ័យ។", e.message);
         cacheCollection = null; 
         visitorsCollection = null;
         return false;
@@ -83,20 +93,46 @@ async function connectToDatabase() {
 function normalizeMathInput(input) {
     if (!input) return "";
 
+    // 1. ប្តូរទៅជាអក្សរតូចទាំងអស់
     let cleaned = input.toLowerCase(); 
+
+    // 2. KILL ALL SPACES
     cleaned = cleaned.replace(/\s/g, ''); 
+
+    // 3. ប្តូរលេខស្វ័យគុណ Unicode ទាំងអស់ (⁰-⁹) ទៅជាលេខធម្មតា (0-9)
     cleaned = cleaned.replace(/⁰/g, '0').replace(/¹/g, '1').replace(/²/g, '2').replace(/³/g, '3').replace(/⁴/g, '4').replace(/⁵/g, '5').replace(/⁶/g, '6').replace(/⁷/g, '7').replace(/⁸/g, '8').replace(/⁹/g, '9');
-    cleaned = cleaned.replace(/([a-z]+)([0-9]+)(\()/g, '$1^$2$3'); 
-    cleaned = cleaned.replace(/([a-z]+)([0-9]+)([a-z])/g, '$1^$2$3'); 
-    cleaned = cleaned.replace(/\(([a-z]+)([^\)]+)\)\^([0-9]+)/g, '$1^$3$2'); 
-    cleaned = cleaned.replace(/([a-z]+)\^([0-9]+)\(([^()]+)\)/g, '$1^$2$3'); 
+    
+    // 4. IMPLICIT POWER FIX (f41x -> f^41x)
+    // ប្រើ Greedy capture ([0-9]+) ដើម្បីធានាថាចាប់បានលេខទាំងអស់ (41, 14, 11)
+    cleaned = cleaned.replace(/([a-z]+)([0-9]+)(\()/g, '$1^$2$3'); // f41(x) -> f^41(x)
+    cleaned = cleaned.replace(/([a-z]+)([0-9]+)([a-z])/g, '$1^$2$3'); // f41x -> f^41x
+
+    // 5. CONSOLIDATION FIX
+    cleaned = cleaned.replace(/\(([a-z]+)([^\)]+)\)\^([0-9]+)/g, '$1^$3$2'); // (sinx)^n -> sin^n x
+    cleaned = cleaned.replace(/([a-z]+)\^([0-9]+)\(([^()]+)\)/g, '$1^$2$3'); // sin^n(x) -> sin^n x
+
+    // 6. DIVISION FIX (A/A -> 1)
     cleaned = cleaned.replace(/([a-z0-9]+)\/\1/g, '1'); 
     cleaned = cleaned.replace(/\(([a-z0-9]+)\)\/\1/g, '1');
     cleaned = cleaned.replace(/([a-z0-9]+)\/\(([a-z0-9]+)\)/g, '1');
     cleaned = cleaned.replace(/\(([a-z0-9]+)\)\/\(([a-z0-9]+)\)/g, '1');
+
+    // 7. MULTIPLICATION FIX (A * A -> A^2)
     cleaned = cleaned.replace(/([a-z0-9]+)\*\1/g, '$1^2'); 
+
+    // 8. ដោះវង់ក្រចកចេញពីអក្សរតែមួយដែលស្វ័យគុណ ((k)^2 -> k^2)
     cleaned = cleaned.replace(/\(([a-z])\)\^/g, '$1^');
+
+    // 9. 🔥 BULLETPROOF POWER 1 REMOVAL (V17) 🔥
+    // យើងលុប ^1 លុះត្រាតែវាត្រូវបានតាមដោយ "អក្សរ" ឬ "វង់ក្រចក" ប៉ុណ្ណោះ។
+    // ប្រសិនបើវាត្រូវបានតាមដោយលេខ (ដូចជា ^14), Regex នេះនឹងមិនដំណើរការទេ។
+    
+    // 9a. sin^1x -> sinx (លុបព្រោះ x ជាអក្សរ)
+    // 9b. sin^14x -> sin^14x (អត់លុបព្រោះ 4 ជាលេខ, មិនមែនអក្សរ)
+    // 9c. sin^41x -> sin^41x (អត់លុបព្រោះគ្មាន ^1 នៅខាងមុខ)
     cleaned = cleaned.replace(/\^1([a-z])/g, '$1'); 
+    
+    // 9d. sin^1(x) -> sin(x) (លុបព្រោះ ( ជាវង់ក្រចក)
     cleaned = cleaned.replace(/\^1\(/g, '(');
 
     return cleaned.trim();
@@ -135,7 +171,7 @@ app.get('/', (req, res) => {
 // --- HELPER FUNCTION FOR API CALLS ---
 // --------------------------------------------------------------------------------
 async function generateMathResponse(contents) {
-    const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY; 
+    const apiKey = process.env.GEMINI_API_KEY; 
     if (!apiKey) throw new Error("API Key មិនត្រូវបានកំណត់។ សូមកំណត់ GEMINI_API_KEY នៅក្នុង Render Environment.");
 
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${apiKey}`, {
@@ -150,9 +186,6 @@ async function generateMathResponse(contents) {
     });
 
     if (!response.ok) {
-        if (response.status === 429) {
-             throw new Error("GOOGLE_QUOTA_EXCEEDED");
-        }
         const errorData = await response.json().catch(() => ({})); 
         throw new Error(`Gemini API Error (${response.status}): ${errorData.error ? errorData.error.message : 'Unknown error'}`);
     }
@@ -170,16 +203,14 @@ const OWNER_IP = process.env.OWNER_IP;
 if (!OWNER_IP) {
     console.log("⚠️ OWNER_IP មិនទាន់បានកំណត់។ អ្នកនឹងជាប់ Limit ដូចគេឯង។");
 } else {
-    console.log(`✅ OWNER_IP បានកំណត់។ IP នេះនឹងមិនជាប់ Limit ទេ: ${OWNESR_IP}`);
+    console.log(`✅ OWNER_IP បានកំណត់។ IP នេះនឹងមិនជាប់ Limit ទេ: ${OWNER_IP}`);
 }
 
 const solverLimiter = rateLimit({
     windowMs: 4 * 60 * 60 * 1000, 
     max: 5, 
     skip: (req, res) => {
-        // ប្រើ x-forwarded-for សម្រាប់ Render IP check
-        const clientIp = req.headers['x-forwarded-for'] ? req.headers['x-forwarded-for'].split(',')[0] : req.ip;
-        if (OWNER_IP && clientIp.includes(OWNER_IP)) return true; 
+        if (OWNER_IP && req.ip === OWNER_IP) return true; 
         return false; 
     },
     message: { error: "⚠️ អ្នកបានប្រើប្រាស់ចំនួនដោះស្រាយអស់ហើយ (5ដង/4ម៉ោង)។ សូមរង់ចាំ 4 ម៉ោងទៀត។" },
@@ -196,7 +227,7 @@ app.post('/api/solve-integral', solverLimiter, async (req, res) => {
         const { prompt } = req.body; 
         
         // --- 📊 VISITOR TRACKING LOGIC ---
-        const userIP = req.headers['x-forwarded-for'] || req.ip; 
+        const userIP = req.ip; 
         const userAgent = req.headers['user-agent'] || 'Unknown'; 
         const today = new Date().toISOString().substring(0, 10); 
 
@@ -222,7 +253,7 @@ app.post('/api/solve-integral', solverLimiter, async (req, res) => {
                 const cachedResult = await cacheCollection.findOne({ _id: cacheKey });
                 if (cachedResult) {
                     console.log(`[CACHE HIT] Original: "${prompt}" -> Normalized: "${normalizedPrompt}"`);
-                    return res.json({ text: cachedResult.result_text, source: "cache" });
+                    return res.json({ text: cachedResult.result_text });
                 }
             } catch (err) {
                 console.error("❌ CACHE READ FAILED:", err.message);
@@ -237,15 +268,7 @@ app.post('/api/solve-integral', solverLimiter, async (req, res) => {
             parts: [{ text: `Solve this math problem in detail: ${prompt}` }] 
         }];
 
-        let resultText;
-        try {
-            resultText = await generateMathResponse(contents);
-        } catch (apiError) {
-             if (apiError.message === "GOOGLE_QUOTA_EXCEEDED") {
-                return res.status(429).json({ error: "Daily Quota Exceeded. Please try again tomorrow." });
-            }
-            throw apiError;
-        }
+        const resultText = await generateMathResponse(contents);
 
         if (!resultText) return res.status(500).json({ error: "AI មិនបានផ្តល់ខ្លឹមសារទេ។" });
 
@@ -264,7 +287,7 @@ app.post('/api/solve-integral', solverLimiter, async (req, res) => {
         }
         // --- CACHE WRITE END ---
 
-        res.json({ text: resultText, source: "api" });
+        res.json({ text: resultText });
 
     } catch (error) {
         console.error("SOLVER ERROR:", error.message);
@@ -324,6 +347,7 @@ async function startServer() {
     
     app.listen(PORT, () => {
         console.log(`Server កំពុងដំណើរការលើ port ${PORT}`);
+        console.log(`Access: https://smart-sinh-i.onrender.com`);
     });
 }
 
