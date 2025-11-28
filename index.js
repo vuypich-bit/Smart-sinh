@@ -1,16 +1,24 @@
-// index.js (កូដចុងក្រោយ: ជំនួយការគណិតវិទ្យាឆ្លាតវៃ)
+// index.js (កូដចុងក្រោយ: ជំនួយការគណិតវិទ្យាឆ្លាតវៃ + Rate Limit 5ដង/1h)
 
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
 
-// 1. IMPORT MONGODB DRIVER 
+// 1. IMPORT RATE LIMIT
+const rateLimit = require('express-rate-limit'); 
+
+// 2. IMPORT MONGODB DRIVER 
 const { MongoClient } = require('mongodb');
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 10000; 
+
+// --- 🚨 IMPORTANT FOR RENDER/CLOUD DEPLOYMENT 🚨 ---
+// ដាក់កូដនេះដើម្បីឱ្យ Server ស្គាល់ IP ពិតរបស់អ្នកប្រើ ពេលដាក់លើ Render
+// បើគ្មានបន្ទាត់នេះទេ Rate Limit អាចនឹង Block អ្នកប្រើទាំងអស់
+app.set('trust proxy', 1);
 
 app.use(cors());
 app.use(express.json());
@@ -19,8 +27,6 @@ app.use(express.json());
 const MODEL_NAME = 'gemini-2.5-flash';
 
 // --- 🧠 MONGODB CONNECTION SETUP ---
-// 🚨🚨🚨 FINAL FIX: ប្រើ URI ថ្មីពី Cluster ថ្មី (cluster0.chyfb9f) 🚨🚨🚨
-// User: testuser, Pass: testpass
 const uri = "mongodb+srv://testuser:testpass@cluster0.chyfb9f.mongodb.net/?appName=Cluster0"; 
 
 const client = new MongoClient(uri);
@@ -40,20 +46,19 @@ async function connectToDatabase() {
         const database = client.db("GeminiMathCache"); 
         cacheCollection = database.collection("solutions"); 
         
-        // ពិនិត្យការតភ្ជាប់ដោយរាប់ឯកសារ
+        // ពិនិត្យការតភ្ជាប់
         await cacheCollection.estimatedDocumentCount();
 
         console.log("✅ MongoDB Connection ជោគជ័យ។ Cache រួចរាល់។");
         return true;
     } catch (e) {
-        // ⚠️ បើនៅតែបរាជ័យ នោះមានន័យថា Network Access (0.0.0.0/0) មិនទាន់ដំណើរការល្អទេ
-        console.error("❌ MONGODB FATAL Connection បរាជ័យ។ សូមពិនិត្យ Network Access (0.0.0.0/0) ក្នុង Atlas", e.message);
+        console.error("❌ MONGODB FATAL Connection បរាជ័យ។", e.message);
         cacheCollection = null; 
         return false;
     }
 }
 
-// --- 🧠 THE BRAIN: SYSTEM INSTRUCTION (unchanged) ---
+// --- 🧠 THE BRAIN: SYSTEM INSTRUCTION ---
 const MATH_ASSISTANT_PERSONA = {
     role: "user", 
     parts: [{ 
@@ -63,12 +68,11 @@ const MATH_ASSISTANT_PERSONA = {
         **CORE IDENTITY RULES (STRICT):**
         1. You are **NOT** an AI, Google model, or robot. NEVER mention "Google", "Gemini", or "Large Language Model".
         2. If asked "Who are you?", reply: "I am your personal Math Assistant, designed to help you solve problems."
-        3. If asked "Are you an AI?", reply: "I am a digital math expert, here to calculate what you cannot."
 
         **PERSONALITY & BEHAVIOR:**
         1. **Human-like Tone:** Speak naturally, use "I" and "You". Be helpful but sharp.
-        2. **Do Not Yield Easily:** If a user argues that you are wrong, DO NOT apologize immediately. Re-check your math internally. If you are right, firmly but politely explain the proof. Say something like: "Wait, let's look at the logic again. I stand by my answer because..." 
-        3. **Detailed Explanations:** Always solve problems step-by-step (ក្បោះក្បាយ). Never give just the final answer.
+        2. **Do Not Yield Easily:** If a user argues that you are wrong, DO NOT apologize immediately. Re-check your math internally.
+        3. **Detailed Explanations:** Always solve problems step-by-step (ក្បោះក្បាយ).
         4. **Format:** Use LaTeX for math equations (e.g., $$ x^2 $$).
         5. **Language:** Respond in the same language the user uses (Khmer or English).
         ` 
@@ -77,16 +81,14 @@ const MATH_ASSISTANT_PERSONA = {
 
 // Health Check Route
 app.get('/', (req, res) => {
-    // បង្ហាញสถานៈច្បាស់លាស់នៅលើ Health Check
     const dbStatus = cacheCollection ? "Connected ✅ (Caching Active)" : "Disconnected ❌ (Caching Disabled)";
     res.send(`✅ Math Assistant (gemini-2.5-flash) is Ready! DB Cache Status: ${dbStatus}`);
 });
 
 // --------------------------------------------------------------------------------
-// --- HELPER FUNCTION FOR API CALLS (unchanged) ---
+// --- HELPER FUNCTION FOR API CALLS ---
 // --------------------------------------------------------------------------------
 async function generateMathResponse(contents) {
-    // ⚠️ ត្រូវតែអាន Key ពី Environment Variable (GEMINI_API_KEY)
     const apiKey = process.env.GEMINI_API_KEY; 
     if (!apiKey) throw new Error("API Key មិនត្រូវបានកំណត់។ សូមកំណត់ GEMINI_API_KEY នៅក្នុង Render Environment.");
 
@@ -111,14 +113,28 @@ async function generateMathResponse(contents) {
 }
 
 // --------------------------------------------------------------------------------
-// --- 1. MAIN SOLVER ROUTE (/api/solve-integral) WITH CACHE (unchanged logic) ---
+// --- 🛡️ RATE LIMITER CONFIGURATION (5 req / 1 hour) ---
+// --------------------------------------------------------------------------------
+const solverLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000, // 1 ម៉ោង (គិតជា milliseconds)
+    max: 5, // កំណត់អតិបរមា 5 ដង
+    message: { 
+        error: "⚠️ អ្នកបានប្រើប្រាស់ចំនួនដោះស្រាយអស់ហើយ (5ដង/ម៉ោង)។ សូមរង់ចាំ 1 ម៉ោងទៀត។" 
+    },
+    standardHeaders: true, 
+    legacyHeaders: false, 
+});
+
+// --------------------------------------------------------------------------------
+// --- 1. MAIN SOLVER ROUTE (/api/solve-integral) WITH CACHE & LIMITER ---
 // --------------------------------------------------------------------------------
 
-app.post('/api/solve-integral', async (req, res) => {
+// អនុវត្ត solverLimiter នៅត្រង់នេះ
+app.post('/api/solve-integral', solverLimiter, async (req, res) => {
     try {
         const { prompt } = req.body; 
         
-        // 1. បង្កើត Base64 Key សម្រាប់ MongoDB
+        // Normalization
         const normalizedPrompt = prompt.toLowerCase().trim().replace(/\s+/g, ' ');
         const cacheKey = Buffer.from(normalizedPrompt).toString('base64');
         
@@ -138,13 +154,12 @@ app.post('/api/solve-integral', async (req, res) => {
         
         console.log(`[AI CALL] កំពុងហៅ Gemini សម្រាប់: "${normalizedPrompt.substring(0, 20)}..."`);
         
-        // បន្ថែមឃ្លាដើម្បីឱ្យវាដឹងថាត្រូវដោះស្រាយលំហាត់
         const contents = [{ 
             role: 'user', 
             parts: [{ text: `Solve this math problem in detail: ${prompt}` }] 
         }];
 
-        // 2. ហៅ AI (ប្រសិនបើគ្មានក្នុង Cache)
+        // ហៅ AI
         const resultText = await generateMathResponse(contents);
 
         if (!resultText) return res.status(500).json({ error: "AI មិនបានផ្តល់ខ្លឹមសារទេ។" });
@@ -152,16 +167,14 @@ app.post('/api/solve-integral', async (req, res) => {
         // --- CACHE WRITE START ---
         if (cacheCollection) {
             try {
-                // ប្រើ CacheKey ដែលបាន Normalize
                 await cacheCollection.insertOne({
                     _id: cacheKey,
                     result_text: resultText,
                     timestamp: new Date()
                 });
-                console.log(`[CACHE WRITE SUCCESS] រក្សាទុកលទ្ធផលសម្រាប់: "${normalizedPrompt.substring(0, 20)}..."`);
+                console.log(`[CACHE WRITE SUCCESS]`);
             } catch (err) {
-                // ភាគច្រើន Error នេះគឺដោយសារតែ Duplicate Key ឬ DB Connection error
-                if (err.code !== 11000) { // 11000 = Duplicate Key Error (ដែលមិនបង្កបញ្ហា)
+                if (err.code !== 11000) { 
                     console.error("❌ CACHE WRITE FAILED (មិនធ្ងន់ធ្ងរ):", err.message);
                 }
             }
@@ -177,7 +190,7 @@ app.post('/api/solve-integral', async (req, res) => {
 });
 
 // --------------------------------------------------------------------------------
-// --- 2. CHAT ROUTE (/api/chat) (unchanged) ---
+// --- 2. CHAT ROUTE (/api/chat) ---
 // --------------------------------------------------------------------------------
 
 app.post('/api/chat', async (req, res) => {
@@ -202,7 +215,7 @@ app.post('/api/chat', async (req, res) => {
 
 
 // --------------------------------------------------------------------------------
-// --- STARTUP FUNCTION (unchanged) ---
+// --- STARTUP FUNCTION ---
 // --------------------------------------------------------------------------------
 
 async function startServer() {
