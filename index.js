@@ -1,4 +1,4 @@
-// index.js (Final Version V12: God-Mode + ULTIMATE Normalization + N>9 FIX + NO SPACES)
+// index.js (Version: God-Mode + ULTIMATE Math Normalization V7 - Division Fix)
 
 const express = require('express');
 const cors = require('cors');
@@ -52,52 +52,50 @@ async function connectToDatabase() {
     }
 }
 
-// --- 🧹 ULTIMATE SMART NORMALIZATION FUNCTION (V12 - FINAL FIX) ---
+// --- 🧹 ULTIMATE SMART NORMALIZATION FUNCTION (V7 - Division Fix) ---
+// មុខងារនេះធានាថារាល់ទម្រង់សមមូលគណិតវិទ្យាត្រូវបានបង្រួបបង្រួមទៅជា Key តែមួយ។
 function normalizeMathInput(input) {
     if (!input) return "";
 
-    // 1. ប្តូរទៅជាអក្សរតូចទាំងអស់ (Case Insensitivity)
+    // 1. ប្តូរទៅជាអក្សរតូចទាំងអស់ (SINX/sinx)
     let cleaned = input.toLowerCase(); 
 
-    // 2. 🔥 KILL ALL SPACES: លុប Space ទាំងអស់ចោលភ្លាមៗ
-    cleaned = cleaned.replace(/\s/g, ''); 
+    // 2. ដក Space ស្ទួនចេញ
+    cleaned = cleaned.replace(/\s+/g, ' '); 
 
-    // 3. ប្តូរលេខស្វ័យគុណ Unicode ទាំងអស់ (⁰-⁹) ទៅជាលេខធម្មតា (0-9)
-    cleaned = cleaned.replace(/⁰/g, '0').replace(/¹/g, '1').replace(/²/g, '2').replace(/³/g, '3').replace(/⁴/g, '4').replace(/⁵/g, '5').replace(/⁶/g, '6').replace(/⁷/g, '7').replace(/⁸/g, '8').replace(/⁹/g, '9');
-    
-    // 4. 🔥 IMPLICIT POWER FIX (>9 DIGITS):
-    // ប្តូរ sin21x -> sin^21x (ធានាថាចាប់បានលេខច្រើនខ្ទង់ [0-9]+)
-    
-    // 4a. ករណី f21(x) -> f^21(x)
-    cleaned = cleaned.replace(/([a-z]+)([0-9]+)(\()/g, '$1^$2$3');
-    
-    // 4b. ករណី f21x -> f^21x
-    cleaned = cleaned.replace(/([a-z]+)([0-9]+)([a-z])/g, '$1^$2$3');
+    // 3. ប្តូរនិមិត្តសញ្ញាស្វ័យគុណពិសេស (¹, ², ³) ទៅជា Caret Notation (^n)
+    cleaned = cleaned.replace(/¹/g, '^1'); 
+    cleaned = cleaned.replace(/²/g, '^2'); 
+    cleaned = cleaned.replace(/³/g, '^3');
 
-    // 5. CONSOLIDATION FIX: បង្រួបបង្រួម (FUNC ARG)^POWER និង FUNC^POWER(ARG)
-    
-    // 5a. ករណី (FUNC ARG)^POWER -> FUNC^POWER ARG (លុបវង់ក្រចកធំ)
-    cleaned = cleaned.replace(/\(([a-z]+)([^\)]+)\)\^([0-9]+)/g, '$1^$3$2');
-
-    // 5b. ករណី FUNC^POWER(ARG) -> FUNC^POWER ARG (លុបវង់ក្រចក Argument)
-    cleaned = cleaned.replace(/([a-z]+)\^([0-9]+)\(([^()]+)\)/g, '$1^$2$3');
-
-
-    // 6. DIVISION FIX: ប្តូរការចែកតួដូចគ្នាទៅជា 1 (A/A -> 1)
-    cleaned = cleaned.replace(/([a-z0-9]+)\/\1/g, '1'); 
-    cleaned = cleaned.replace(/\(([a-z0-9]+)\)\/\1/g, '1');
-    cleaned = cleaned.replace(/([a-z0-9]+)\/\(([a-z0-9]+)\)/g, '1');
-    cleaned = cleaned.replace(/\(([a-z0-9]+)\)\/\(([a-z0-9]+)\)/g, '1');
-
-
-    // 7. MULTIPLICATION FIX: ប្តូរការគុណតួដូចគ្នាទៅជាស្វ័យគុណ (A * A -> A^2)
-    cleaned = cleaned.replace(/([a-z0-9]+)\*\1/g, '$1^2'); 
-
-    // 8. ដោះវង់ក្រចកចេញពីអក្សរតែមួយដែលស្វ័យគុណ (k)^2 -> k^2
-    cleaned = cleaned.replace(/\(([a-z])\)\^/g, '$1^');
-
-    // 9. លុបចោល Power 1 (^1) ទាំងស្រុង
+    // 4. 🔥 លុបចោល Power 1 (^1) ទាំងស្រុង (សំខាន់សម្រាប់ករណី (sinx)^1/sinx)
     cleaned = cleaned.replace(/\^1/g, ''); 
+
+    // 5. 🔥 NEW FIX: Convert division of identical terms to 1 (A/A -> 1)
+    // ត្រូវធ្វើបន្ទាប់ពីលុប ^1 ដើម្បីឱ្យ (sinx)^1 ក្លាយជា sinx សិន
+    
+    // 5a. ករណីធម្មតា: A / A (sinx / sinx)
+    cleaned = cleaned.replace(/\b([a-z0-9]+)\s*\/\s*\1\b/g, '1');
+    
+    // 5b. ករណីមានវង់ក្រចកខាងមុខ: (A) / A
+    cleaned = cleaned.replace(/\(\s*([a-z0-9]+)\s*\)\s*\/\s*\1/g, '1');
+
+    // 5c. ករណីមានវង់ក្រចកខាងក្រោយ: A / (A)
+    cleaned = cleaned.replace(/([a-z0-9]+)\s*\/\s*\(\s*\1\s*\)/g, '1');
+
+    // 5d. ករណីមានវង់ក្រចកទាំងសងខាង: (A) / (A)
+    cleaned = cleaned.replace(/\(\s*([a-z0-9]+)\s*\)\s*\/\s*\(\s*\1\s*\)/g, '1');
+
+    // 6. Convert repeated multiplication (A * A) to exponent (A^2)
+    cleaned = cleaned.replace(/([a-z0-9]+)\s*\*\s*\1/g, '$1^2'); 
+
+    // 7. បង្រួបបង្រួមទម្រង់ (sin(x))^2 ទៅជា sin^2(x)
+    cleaned = cleaned.replace(/\(\s*([a-z]+)\s*([^\)]+)\s*\)\s*\^([0-9]+)/g, '$1^$3($2)');
+    
+    // 8. លុបវង់ក្រចកដែលលើសលុបសម្រាប់ស្វ័យគុណសាមញ្ញ (sin^2(x) -> sin^2x, (k)^2 -> k^2)
+    // ដោះស្រាយបញ្ហា (k)^2 ដែលអ្នកបានលើកឡើង
+    cleaned = cleaned.replace(/\(\s*([a-z])\s*\)\^/g, '$1^'); // (k)^2 -> k^2
+    cleaned = cleaned.replace(/([a-z]+)\^([0-9])\s*\(([^()]+)\)/g, '$1^$2$3'); // sin^2(x) -> sin^2x
 
     return cleaned.trim();
 }
@@ -199,7 +197,7 @@ app.post('/api/solve-integral', solverLimiter, async (req, res) => {
     try {
         const { prompt } = req.body; 
         
-        // 🔥 Normalize Here 🔥
+        // 🔥 ប្រើ Function ថ្មីនៅទីនេះ 🔥
         const normalizedPrompt = normalizeMathInput(prompt);
         const cacheKey = Buffer.from(normalizedPrompt).toString('base64');
         
@@ -240,7 +238,7 @@ app.post('/api/solve-integral', solverLimiter, async (req, res) => {
                 console.log(`[CACHE WRITE SUCCESS]`);
             } catch (err) {
                 if (err.code !== 11000) { 
-                    console.error("❌ CACHE WRITE FAILED:", err.message);
+                    console.error("❌ CACHE WRITE FAILED (មិនធ្ងន់ធ្ងរ):", err.message);
                 }
             }
         }
@@ -278,13 +276,21 @@ app.post('/api/chat', async (req, res) => {
     }
 });
 
+
+// --------------------------------------------------------------------------------
+// --- STARTUP FUNCTION ---
+// --------------------------------------------------------------------------------
+
 async function startServer() {
     const isDbConnected = await connectToDatabase();
-    if (!isDbConnected) console.warn("Server កំពុងចាប់ផ្តើមដោយគ្មាន MongoDB caching។");
+    
+    if (!isDbConnected) {
+        console.warn("Server កំពុងចាប់ផ្តើមដោយគ្មាន MongoDB caching។");
+    }
     
     app.listen(PORT, () => {
-        console.log(`Server កំពុងដំណើរការលើ port ${PORT}`);
-        console.log(`Access: https://smart-sinh-i.onrender.com`);
+        console.log(`Server កំពុងដំណើរការលើ port ${PORT} ដោយប្រើ model ${MODEL_NAME}`);
+        console.log(`Access the App at: https://smart-sinh-i.onrender.com`);
     });
 }
 
