@@ -1,4 +1,4 @@
-// index.js (កូដចុងក្រោយ: ជំនួយការគណិតវិទ្យាឆ្លាតវៃ + Rate Limit 5ដង/4h)
+// index.js (កូដចុងក្រោយ: ជំនួយការគណិតវិទ្យាឆ្លាតវៃ + Owner IP via Env Var)
 
 const express = require('express');
 const cors = require('cors');
@@ -16,7 +16,7 @@ const app = express();
 const PORT = process.env.PORT || 10000; 
 
 // --- 🚨 IMPORTANT FOR RENDER/CLOUD DEPLOYMENT 🚨 ---
-// ដាក់កូដនេះដើម្បីឱ្យ Server ស្គាល់ IP ពិតរបស់អ្នកប្រើ ពេលដាក់លើ Render
+// ដាក់កូដនេះដើម្បីឱ្យ Server ស្គាល់ IP ពិតរបស់អ្នកប្រើ
 app.set('trust proxy', 1);
 
 app.use(cors());
@@ -114,9 +114,31 @@ async function generateMathResponse(contents) {
 // --------------------------------------------------------------------------------
 // --- 🛡️ RATE LIMITER CONFIGURATION (5 req / 4 hours) ---
 // --------------------------------------------------------------------------------
+
+// ទទួលយក IP ពី Environment Variable (Render)
+const OWNER_IP = process.env.OWNER_IP; 
+
+if (!OWNER_IP) {
+    console.log("⚠️ OWNER_IP មិនទាន់បានកំណត់ក្នុង Environment Variable ទេ។ អ្នកនឹងជាប់ Limit ដូចគេឯង។");
+} else {
+    console.log(`✅ OWNER_IP បានកំណត់។ IP នេះនឹងមិនជាប់ Limit ទេ: ${OWNER_IP}`);
+}
+
 const solverLimiter = rateLimit({
-    windowMs: 4 * 60 * 60 * 1000, // 4 ម៉ោង (គិតជា milliseconds)
-    max: 5, // កំណត់អតិបរមា 5 ដង
+    windowMs: 4 * 60 * 60 * 1000, // 4 ម៉ោង
+    max: 5, // 5 ដងសម្រាប់មនុស្សទូទៅ
+    
+    // --- មុខងារពិសេសសម្រាប់ម្ចាស់ (SKIP) ---
+    skip: (req, res) => {
+        // req.ip គឺជា IP របស់អ្នកប្រើបច្ចុប្បន្ន
+        // OWNER_IP គឺជា IP ដែលបានកំណត់ក្នុង Render Environment
+        if (OWNER_IP && req.ip === OWNER_IP) {
+            console.log(`[VIP ACCESS] Skipping Rate Limit for Owner: ${req.ip}`);
+            return true; // អនុញ្ញាតឱ្យឆ្លងកាត់ដោយគ្មាន Limit
+        }
+        return false; // ដាក់ Limit ធម្មតាសម្រាប់អ្នកផ្សេង
+    },
+
     message: { 
         error: "⚠️ អ្នកបានប្រើប្រាស់ចំនួនដោះស្រាយអស់ហើយ (5ដង/4ម៉ោង)។ សូមរង់ចាំ 4 ម៉ោងទៀត។" 
     },
