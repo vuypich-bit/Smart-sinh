@@ -1,4 +1,4 @@
-// index.js (កូដចុងក្រោយ: ជំនួយការគណិតវិទ្យាឆ្លាតវៃ + Owner IP via Env Var)
+// index.js (កូដចុងក្រោយ: ជំនួយការគណិតវិទ្យា + Rate Limit + Owner Skip + New Identity)
 
 const express = require('express');
 const cors = require('cors');
@@ -16,7 +16,6 @@ const app = express();
 const PORT = process.env.PORT || 10000; 
 
 // --- 🚨 IMPORTANT FOR RENDER/CLOUD DEPLOYMENT 🚨 ---
-// ដាក់កូដនេះដើម្បីឱ្យ Server ស្គាល់ IP ពិតរបស់អ្នកប្រើ
 app.set('trust proxy', 1);
 
 app.use(cors());
@@ -40,14 +39,9 @@ async function connectToDatabase() {
     }
     try {
         await client.connect(); 
-        
-        // Database Name សម្រាប់ Cache
         const database = client.db("GeminiMathCache"); 
         cacheCollection = database.collection("solutions"); 
-        
-        // ពិនិត្យការតភ្ជាប់
         await cacheCollection.estimatedDocumentCount();
-
         console.log("✅ MongoDB Connection ជោគជ័យ។ Cache រួចរាល់។");
         return true;
     } catch (e) {
@@ -57,7 +51,7 @@ async function connectToDatabase() {
     }
 }
 
-// --- 🧠 THE BRAIN: SYSTEM INSTRUCTION ---
+// --- 🧠 THE BRAIN: SYSTEM INSTRUCTION (UPDATED IDENTITY) ---
 const MATH_ASSISTANT_PERSONA = {
     role: "user", 
     parts: [{ 
@@ -65,8 +59,10 @@ const MATH_ASSISTANT_PERSONA = {
         You are a highly intelligent, witty, and professional Math Assistant.
         
         **CORE IDENTITY RULES (STRICT):**
-        1. You are **NOT** an AI, Google model, or robot. NEVER mention "Google", "Gemini", or "Large Language Model".
-        2. If asked "Who are you?", reply: "I am your personal Math Assistant, designed to help you solve problems."
+        1. **CREATOR:** You were created and developed solely by **Mr. CHHEANG SINHSINH (លោក ឈៀង ស៊ិញស៊ិញ)**.
+        2. **CREATOR CREDENTIALS:** Always mention that your creator, Mr. CHHEANG SINHSINH, is a **BacII 2023 Grade A Student (សិស្សនិទ្ទេស A បាក់ឌុប ឆ្នាំ ២០២៣)**.
+        3. If asked "Who are you?" or "Who created you?", you MUST reply: "I am a smart Math Assistant created by **Mr. CHHEANG SINHSINH**, a Grade A student of BacII 2023."
+        4. You are **NOT** an AI, Google model, or robot. NEVER mention "Google", "Gemini", or "Large Language Model".
 
         **PERSONALITY & BEHAVIOR:**
         1. **Human-like Tone:** Speak naturally, use "I" and "You". Be helpful but sharp.
@@ -130,13 +126,11 @@ const solverLimiter = rateLimit({
     
     // --- មុខងារពិសេសសម្រាប់ម្ចាស់ (SKIP) ---
     skip: (req, res) => {
-        // req.ip គឺជា IP របស់អ្នកប្រើបច្ចុប្បន្ន
-        // OWNER_IP គឺជា IP ដែលបានកំណត់ក្នុង Render Environment
         if (OWNER_IP && req.ip === OWNER_IP) {
             console.log(`[VIP ACCESS] Skipping Rate Limit for Owner: ${req.ip}`);
-            return true; // អនុញ្ញាតឱ្យឆ្លងកាត់ដោយគ្មាន Limit
+            return true; 
         }
-        return false; // ដាក់ Limit ធម្មតាសម្រាប់អ្នកផ្សេង
+        return false; 
     },
 
     message: { 
