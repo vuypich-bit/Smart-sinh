@@ -1,10 +1,10 @@
-// index.js (Final Version: God-Mode + ULTIMATE Normalization + Rate Limit Bypass)
+// index.js (Final Version: God-Mode + ULTIMATE Math Normalization V9 - Power Consolidation)
 
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
 
-// 1. IMPORT RATE LIMIT (ត្រូវប្រាកដថាបាន install: npm install express-rate-limit)
+// 1. IMPORT RATE LIMIT
 const rateLimit = require('express-rate-limit'); 
 
 // 2. IMPORT MONGODB DRIVER 
@@ -52,8 +52,7 @@ async function connectToDatabase() {
     }
 }
 
-// --- 🧹 ULTIMATE SMART NORMALIZATION FUNCTION (FINAL GLOBAL VERSION) ---
-// មុខងារនេះធានាថារាល់ទម្រង់សមមូលគណិតវិទ្យាត្រូវបានបង្រួបបង្រួមទៅជា Key តែមួយ។
+// --- 🧹 ULTIMATE SMART NORMALIZATION FUNCTION (V9 - FINAL FIX) ---
 function normalizeMathInput(input) {
     if (!input) return "";
 
@@ -62,35 +61,40 @@ function normalizeMathInput(input) {
 
     // 2. ដក Space ស្ទួនចេញ
     cleaned = cleaned.replace(/\s+/g, ' '); 
-    
+
     // 3. ប្តូរលេខស្វ័យគុណ Unicode ទាំងអស់ (⁰-⁹) ទៅជាលេខធម្មតា (0-9)
-    // ឧទាហរណ៍: sin¹⁵x -> sin15x
     cleaned = cleaned.replace(/⁰/g, '0').replace(/¹/g, '1').replace(/²/g, '2').replace(/³/g, '3').replace(/⁴/g, '4').replace(/⁵/g, '5').replace(/⁶/g, '6').replace(/⁷/g, '7').replace(/⁸/g, '8').replace(/⁹/g, '9');
     
-    // 4. 🔥 GENERAL FIX: ប្តូរទម្រង់ sin15x -> sin^15x (ឬ f15x -> f^15x)
-    // ចាប់យកអក្សរ (variable/function) + លេខ + អក្សរ (argument)
+    // 4. GENERAL FIX: ប្តូរទម្រង់ implicit power notation (f15x -> f^15x)
     cleaned = cleaned.replace(/([a-z]+)\s*([0-9]+)([a-z])/g, '$1^$2$3');
 
-    // 5. 🔥 DIVISION FIX: ប្តូរការចែកតួដូចគ្នាទៅជា 1 (A/A -> 1)
-    cleaned = cleaned.replace(/\b([a-z0-9]+)\s*\/\s*\1\b/g, '1'); // A/A
-    cleaned = cleaned.replace(/\(\s*([a-z0-9]+)\s*\)\s*\/\s*\1/g, '1'); // (A)/A
-    cleaned = cleaned.replace(/([a-z0-9]+)\s*\/\s*\(\s*\1\s*\)/g, '1'); // A/(A)
-    cleaned = cleaned.replace(/\(\s*([a-z0-9]+)\s*\)\s*\/\s*\(\s*\1\s*\)/g, '1'); // (A)/(A)
+    // 5. 🔥 CONSOLIDATION FIX (ដំណោះស្រាយចុងក្រោយ):
+    // ធ្វើឱ្យ (sinx)^17, sin^17(x), និង sin^17x ក្លាយជាទម្រង់តែមួយគឺ "sin^17x"
+    
+    // 5a. ករណី (FUNC ARG)^POWER -> FUNC^POWER ARG (លុបវង់ក្រចកធំ)
+    // ឧទាហរណ៍: (sin x)^17 -> sin^17 x
+    cleaned = cleaned.replace(/\(\s*([a-z]+)\s*([^\)]+)\s*\)\s*\^([0-9]+)/g, '$1^$3$2');
 
-    // 6. MULTIPLICATION FIX: ប្តូរការគុណតួដូចគ្នាទៅជាស្វ័យគុណ (A * A -> A^2)
+    // 5b. ករណី FUNC^POWER(ARG) -> FUNC^POWER ARG (លុបវង់ក្រចក Argument)
+    // ឧទាហរណ៍: sin^17(x) -> sin^17 x
+    cleaned = cleaned.replace(/([a-z]+)\^([0-9]+)\s*\(([^()]+)\)/g, '$1^$2$3');
+
+
+    // 6. DIVISION FIX: ប្តូរការចែកតួដូចគ្នាទៅជា 1 (A/A -> 1)
+    cleaned = cleaned.replace(/\b([a-z0-9]+)\s*\/\s*\1\b/g, '1');
+    cleaned = cleaned.replace(/\(\s*([a-z0-9]+)\s*\)\s*\/\s*\1/g, '1');
+    cleaned = cleaned.replace(/([a-z0-9]+)\s*\/\s*\(\s*\1\s*\)/g, '1');
+    cleaned = cleaned.replace(/\(\s*([a-z0-9]+)\s*\)\s*\/\s*\(\s*\1\s*\)/g, '1');
+
+
+    // 7. MULTIPLICATION FIX: ប្តូរការគុណតួដូចគ្នាទៅជាស្វ័យគុណ (A * A -> A^2)
     cleaned = cleaned.replace(/([a-z0-9]+)\s*\*\s*\1/g, '$1^2'); 
 
-    // 7. ដោះវង់ក្រចកចេញពីអក្សរតែមួយដែលស្វ័យគុណ ((k)^2 -> k^2)
+    // 8. ដោះវង់ក្រចកចេញពីអក្សរតែមួយដែលស្វ័យគុណ ((k)^2 -> k^2)
     cleaned = cleaned.replace(/\(\s*([a-z])\s*\)\^/g, '$1^');
 
-    // 8. បង្រួបបង្រួមទម្រង់ (sin(x))^2 ទៅជា sin^2(x)
-    cleaned = cleaned.replace(/\(\s*([a-z]+)\s*([^\)]+)\s*\)\s*\^([0-9]+)/g, '$1^$3($2)');
-
-    // 9. លុបចោល Power 1 (^1) ទាំងស្រុង (sin^1x -> sinx)
+    // 9. លុបចោល Power 1 (^1) ទាំងស្រុង
     cleaned = cleaned.replace(/\^1/g, ''); 
-    
-    // 10. លុបវង់ក្រចកដែលលើសលុបសម្រាប់ស្វ័យគុណសាមញ្ញ (f^2(x) -> f^2x)
-    cleaned = cleaned.replace(/([a-z]+)\^([0-9]+)\s*\(([^()]+)\)/g, '$1^$2$3'); 
 
     return cleaned.trim();
 }
@@ -193,7 +197,6 @@ app.post('/api/solve-integral', solverLimiter, async (req, res) => {
         const { prompt } = req.body; 
         
         // 🔥 Normalize Here 🔥
-        // បំប្លែងគ្រប់ទម្រង់អោយទៅជា Key តែមួយ (ឧ. sin¹⁵x -> sin^15x)
         const normalizedPrompt = normalizeMathInput(prompt);
         const cacheKey = Buffer.from(normalizedPrompt).toString('base64');
         
@@ -227,7 +230,7 @@ app.post('/api/solve-integral', solverLimiter, async (req, res) => {
         if (cacheCollection) {
             try {
                 await cacheCollection.insertOne({
-                    _id: cacheKey, 
+                    _id: cacheKey, // Save ដោយប្រើ Normalized Key
                     result_text: resultText,
                     timestamp: new Date()
                 });
