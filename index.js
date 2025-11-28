@@ -1,4 +1,4 @@
-// index.js (Version: God-Mode + ULTIMATE Math Normalization V7 - Division Fix)
+// index.js (Final Version V13: God-Mode + ULTIMATE Normalization + FIXED POWER 10-19 BUG)
 
 const express = require('express');
 const cors = require('cors');
@@ -16,7 +16,6 @@ const app = express();
 const PORT = process.env.PORT || 10000; 
 
 // --- 🚨 IMPORTANT FOR RENDER/CLOUD DEPLOYMENT 🚨 ---
-// ដាក់កូដនេះដើម្បីឱ្យ Server ស្គាល់ IP ពិតរបស់អ្នកប្រើ
 app.set('trust proxy', 1);
 
 app.use(cors());
@@ -52,50 +51,44 @@ async function connectToDatabase() {
     }
 }
 
-// --- 🧹 ULTIMATE SMART NORMALIZATION FUNCTION (V7 - Division Fix) ---
-// មុខងារនេះធានាថារាល់ទម្រង់សមមូលគណិតវិទ្យាត្រូវបានបង្រួបបង្រួមទៅជា Key តែមួយ។
+// --- 🧹 ULTIMATE SMART NORMALIZATION FUNCTION (V13 - FINAL SAFE FIX) ---
 function normalizeMathInput(input) {
     if (!input) return "";
 
-    // 1. ប្តូរទៅជាអក្សរតូចទាំងអស់ (SINX/sinx)
+    // 1. ប្តូរទៅជាអក្សរតូចទាំងអស់
     let cleaned = input.toLowerCase(); 
 
-    // 2. ដក Space ស្ទួនចេញ
-    cleaned = cleaned.replace(/\s+/g, ' '); 
+    // 2. KILL ALL SPACES
+    cleaned = cleaned.replace(/\s/g, ''); 
 
-    // 3. ប្តូរនិមិត្តសញ្ញាស្វ័យគុណពិសេស (¹, ², ³) ទៅជា Caret Notation (^n)
-    cleaned = cleaned.replace(/¹/g, '^1'); 
-    cleaned = cleaned.replace(/²/g, '^2'); 
-    cleaned = cleaned.replace(/³/g, '^3');
-
-    // 4. 🔥 លុបចោល Power 1 (^1) ទាំងស្រុង (សំខាន់សម្រាប់ករណី (sinx)^1/sinx)
-    cleaned = cleaned.replace(/\^1/g, ''); 
-
-    // 5. 🔥 NEW FIX: Convert division of identical terms to 1 (A/A -> 1)
-    // ត្រូវធ្វើបន្ទាប់ពីលុប ^1 ដើម្បីឱ្យ (sinx)^1 ក្លាយជា sinx សិន
+    // 3. ប្តូរលេខស្វ័យគុណ Unicode ទាំងអស់ (⁰-⁹) ទៅជាលេខធម្មតា (0-9)
+    cleaned = cleaned.replace(/⁰/g, '0').replace(/¹/g, '1').replace(/²/g, '2').replace(/³/g, '3').replace(/⁴/g, '4').replace(/⁵/g, '5').replace(/⁶/g, '6').replace(/⁷/g, '7').replace(/⁸/g, '8').replace(/⁹/g, '9');
     
-    // 5a. ករណីធម្មតា: A / A (sinx / sinx)
-    cleaned = cleaned.replace(/\b([a-z0-9]+)\s*\/\s*\1\b/g, '1');
-    
-    // 5b. ករណីមានវង់ក្រចកខាងមុខ: (A) / A
-    cleaned = cleaned.replace(/\(\s*([a-z0-9]+)\s*\)\s*\/\s*\1/g, '1');
+    // 4. IMPLICIT POWER FIX (f21x -> f^21x)
+    cleaned = cleaned.replace(/([a-z]+)([0-9]+)(\()/g, '$1^$2$3');
+    cleaned = cleaned.replace(/([a-z]+)([0-9]+)([a-z])/g, '$1^$2$3');
 
-    // 5c. ករណីមានវង់ក្រចកខាងក្រោយ: A / (A)
-    cleaned = cleaned.replace(/([a-z0-9]+)\s*\/\s*\(\s*\1\s*\)/g, '1');
+    // 5. CONSOLIDATION FIX
+    cleaned = cleaned.replace(/\(([a-z]+)([^\)]+)\)\^([0-9]+)/g, '$1^$3$2');
+    cleaned = cleaned.replace(/([a-z]+)\^([0-9]+)\(([^()]+)\)/g, '$1^$2$3');
 
-    // 5d. ករណីមានវង់ក្រចកទាំងសងខាង: (A) / (A)
-    cleaned = cleaned.replace(/\(\s*([a-z0-9]+)\s*\)\s*\/\s*\(\s*\1\s*\)/g, '1');
+    // 6. DIVISION FIX (A/A -> 1)
+    cleaned = cleaned.replace(/([a-z0-9]+)\/\1/g, '1'); 
+    cleaned = cleaned.replace(/\(([a-z0-9]+)\)\/\1/g, '1');
+    cleaned = cleaned.replace(/([a-z0-9]+)\/\(([a-z0-9]+)\)/g, '1');
+    cleaned = cleaned.replace(/\(([a-z0-9]+)\)\/\(([a-z0-9]+)\)/g, '1');
 
-    // 6. Convert repeated multiplication (A * A) to exponent (A^2)
-    cleaned = cleaned.replace(/([a-z0-9]+)\s*\*\s*\1/g, '$1^2'); 
+    // 7. MULTIPLICATION FIX (A * A -> A^2)
+    cleaned = cleaned.replace(/([a-z0-9]+)\*\1/g, '$1^2'); 
 
-    // 7. បង្រួបបង្រួមទម្រង់ (sin(x))^2 ទៅជា sin^2(x)
-    cleaned = cleaned.replace(/\(\s*([a-z]+)\s*([^\)]+)\s*\)\s*\^([0-9]+)/g, '$1^$3($2)');
-    
-    // 8. លុបវង់ក្រចកដែលលើសលុបសម្រាប់ស្វ័យគុណសាមញ្ញ (sin^2(x) -> sin^2x, (k)^2 -> k^2)
-    // ដោះស្រាយបញ្ហា (k)^2 ដែលអ្នកបានលើកឡើង
-    cleaned = cleaned.replace(/\(\s*([a-z])\s*\)\^/g, '$1^'); // (k)^2 -> k^2
-    cleaned = cleaned.replace(/([a-z]+)\^([0-9])\s*\(([^()]+)\)/g, '$1^$2$3'); // sin^2(x) -> sin^2x
+    // 8. ដោះវង់ក្រចកចេញពីអក្សរតែមួយដែលស្វ័យគុណ ((k)^2 -> k^2)
+    cleaned = cleaned.replace(/\(([a-z])\)\^/g, '$1^');
+
+    // 9. 🔥 SAFE POWER 1 REMOVAL (BUG FIXED HERE) 🔥
+    // Regex នេះលុប ^1 ចោល លុះត្រាតែតួបន្ទាប់ *មិនមែន* ជាលេខ។
+    // sin^1x -> sinx (លុប)
+    // sin^12x -> sin^12x (អត់លុប)
+    cleaned = cleaned.replace(/\^1(?![0-9])/g, ''); 
 
     return cleaned.trim();
 }
@@ -160,7 +153,6 @@ async function generateMathResponse(contents) {
 // --- 🛡️ RATE LIMITER CONFIGURATION (5 req / 4 hours) ---
 // --------------------------------------------------------------------------------
 
-// ទទួលយក IP ពី Environment Variable (Render)
 const OWNER_IP = process.env.OWNER_IP; 
 
 if (!OWNER_IP) {
@@ -170,34 +162,26 @@ if (!OWNER_IP) {
 }
 
 const solverLimiter = rateLimit({
-    windowMs: 4 * 60 * 60 * 1000, // 4 ម៉ោង
-    max: 5, // 5 ដងសម្រាប់មនុស្សទូទៅ
-    
-    // --- មុខងារពិសេសសម្រាប់ម្ចាស់ (SKIP) ---
+    windowMs: 4 * 60 * 60 * 1000, 
+    max: 5, 
     skip: (req, res) => {
-        if (OWNER_IP && req.ip === OWNER_IP) {
-            console.log(`[VIP ACCESS] Skipping Rate Limit for Owner: ${req.ip}`);
-            return true; 
-        }
+        if (OWNER_IP && req.ip === OWNER_IP) return true; 
         return false; 
     },
-
-    message: { 
-        error: "⚠️ អ្នកបានប្រើប្រាស់ចំនួនដោះស្រាយអស់ហើយ (5ដង/4ម៉ោង)។ សូមរង់ចាំ 4 ម៉ោងទៀត។" 
-    },
+    message: { error: "⚠️ អ្នកបានប្រើប្រាស់ចំនួនដោះស្រាយអស់ហើយ (5ដង/4ម៉ោង)។ សូមរង់ចាំ 4 ម៉ោងទៀត។" },
     standardHeaders: true, 
     legacyHeaders: false, 
 });
 
 // --------------------------------------------------------------------------------
-// --- 1. MAIN SOLVER ROUTE (/api/solve-integral) WITH CACHE & LIMITER ---
+// --- 1. MAIN SOLVER ROUTE (/api/solve-integral) ---
 // --------------------------------------------------------------------------------
 
 app.post('/api/solve-integral', solverLimiter, async (req, res) => {
     try {
         const { prompt } = req.body; 
         
-        // 🔥 ប្រើ Function ថ្មីនៅទីនេះ 🔥
+        // 🔥 Normalize Here 🔥
         const normalizedPrompt = normalizeMathInput(prompt);
         const cacheKey = Buffer.from(normalizedPrompt).toString('base64');
         
@@ -222,7 +206,6 @@ app.post('/api/solve-integral', solverLimiter, async (req, res) => {
             parts: [{ text: `Solve this math problem in detail: ${prompt}` }] 
         }];
 
-        // ហៅ AI
         const resultText = await generateMathResponse(contents);
 
         if (!resultText) return res.status(500).json({ error: "AI មិនបានផ្តល់ខ្លឹមសារទេ។" });
@@ -231,15 +214,13 @@ app.post('/api/solve-integral', solverLimiter, async (req, res) => {
         if (cacheCollection) {
             try {
                 await cacheCollection.insertOne({
-                    _id: cacheKey, // Save ដោយប្រើ Normalized Key
+                    _id: cacheKey,
                     result_text: resultText,
                     timestamp: new Date()
                 });
                 console.log(`[CACHE WRITE SUCCESS]`);
             } catch (err) {
-                if (err.code !== 11000) { 
-                    console.error("❌ CACHE WRITE FAILED (មិនធ្ងន់ធ្ងរ):", err.message);
-                }
+                if (err.code !== 11000) console.error("❌ CACHE WRITE FAILED:", err.message);
             }
         }
         // --- CACHE WRITE END ---
@@ -259,38 +240,23 @@ app.post('/api/solve-integral', solverLimiter, async (req, res) => {
 app.post('/api/chat', async (req, res) => {
     try {
         const { message, history } = req.body;
-
-        const contents = [
-            ...(history || []), 
-            { role: 'user', parts: [{ text: message }] }
-        ];
-
+        const contents = [ ...(history || []), { role: 'user', parts: [{ text: message }] } ];
         const resultText = await generateMathResponse(contents);
-
         if (!resultText) return res.status(500).json({ error: "AI មិនបានផ្តល់ខ្លឹមសារទេ។" });
         res.json({ text: resultText });
-        
     } catch (error) {
         console.error("CHAT ERROR:", error.message);
         res.status(500).json({ error: error.message });
     }
 });
 
-
-// --------------------------------------------------------------------------------
-// --- STARTUP FUNCTION ---
-// --------------------------------------------------------------------------------
-
 async function startServer() {
     const isDbConnected = await connectToDatabase();
-    
-    if (!isDbConnected) {
-        console.warn("Server កំពុងចាប់ផ្តើមដោយគ្មាន MongoDB caching។");
-    }
+    if (!isDbConnected) console.warn("Server កំពុងចាប់ផ្តើមដោយគ្មាន MongoDB caching។");
     
     app.listen(PORT, () => {
-        console.log(`Server កំពុងដំណើរការលើ port ${PORT} ដោយប្រើ model ${MODEL_NAME}`);
-        console.log(`Access the App at: https://smart-sinh-i.onrender.com`);
+        console.log(`Server កំពុងដំណើរការលើ port ${PORT}`);
+        console.log(`Access: https://smart-sinh-i.onrender.com`);
     });
 }
 
