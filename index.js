@@ -1,10 +1,10 @@
-// index.js (Version: God-Mode + ULTIMATE Math Normalization V7 - Division Fix)
+// index.js (Final Version: God-Mode + ULTIMATE Normalization + Rate Limit Bypass)
 
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
 
-// 1. IMPORT RATE LIMIT
+// 1. IMPORT RATE LIMIT (ត្រូវប្រាកដថាបាន install: npm install express-rate-limit)
 const rateLimit = require('express-rate-limit'); 
 
 // 2. IMPORT MONGODB DRIVER 
@@ -52,50 +52,45 @@ async function connectToDatabase() {
     }
 }
 
-// --- 🧹 ULTIMATE SMART NORMALIZATION FUNCTION (V7 - Division Fix) ---
+// --- 🧹 ULTIMATE SMART NORMALIZATION FUNCTION (FINAL GLOBAL VERSION) ---
 // មុខងារនេះធានាថារាល់ទម្រង់សមមូលគណិតវិទ្យាត្រូវបានបង្រួបបង្រួមទៅជា Key តែមួយ។
 function normalizeMathInput(input) {
     if (!input) return "";
 
-    // 1. ប្តូរទៅជាអក្សរតូចទាំងអស់ (SINX/sinx)
+    // 1. ប្តូរទៅជាអក្សរតូចទាំងអស់ (Case Insensitivity)
     let cleaned = input.toLowerCase(); 
 
     // 2. ដក Space ស្ទួនចេញ
     cleaned = cleaned.replace(/\s+/g, ' '); 
-
-    // 3. ប្តូរនិមិត្តសញ្ញាស្វ័យគុណពិសេស (¹, ², ³) ទៅជា Caret Notation (^n)
-    cleaned = cleaned.replace(/¹/g, '^1'); 
-    cleaned = cleaned.replace(/²/g, '^2'); 
-    cleaned = cleaned.replace(/³/g, '^3');
-
-    // 4. 🔥 លុបចោល Power 1 (^1) ទាំងស្រុង (សំខាន់សម្រាប់ករណី (sinx)^1/sinx)
-    cleaned = cleaned.replace(/\^1/g, ''); 
-
-    // 5. 🔥 NEW FIX: Convert division of identical terms to 1 (A/A -> 1)
-    // ត្រូវធ្វើបន្ទាប់ពីលុប ^1 ដើម្បីឱ្យ (sinx)^1 ក្លាយជា sinx សិន
     
-    // 5a. ករណីធម្មតា: A / A (sinx / sinx)
-    cleaned = cleaned.replace(/\b([a-z0-9]+)\s*\/\s*\1\b/g, '1');
+    // 3. ប្តូរលេខស្វ័យគុណ Unicode ទាំងអស់ (⁰-⁹) ទៅជាលេខធម្មតា (0-9)
+    // ឧទាហរណ៍: sin¹⁵x -> sin15x
+    cleaned = cleaned.replace(/⁰/g, '0').replace(/¹/g, '1').replace(/²/g, '2').replace(/³/g, '3').replace(/⁴/g, '4').replace(/⁵/g, '5').replace(/⁶/g, '6').replace(/⁷/g, '7').replace(/⁸/g, '8').replace(/⁹/g, '9');
     
-    // 5b. ករណីមានវង់ក្រចកខាងមុខ: (A) / A
-    cleaned = cleaned.replace(/\(\s*([a-z0-9]+)\s*\)\s*\/\s*\1/g, '1');
+    // 4. 🔥 GENERAL FIX: ប្តូរទម្រង់ sin15x -> sin^15x (ឬ f15x -> f^15x)
+    // ចាប់យកអក្សរ (variable/function) + លេខ + អក្សរ (argument)
+    cleaned = cleaned.replace(/([a-z]+)\s*([0-9]+)([a-z])/g, '$1^$2$3');
 
-    // 5c. ករណីមានវង់ក្រចកខាងក្រោយ: A / (A)
-    cleaned = cleaned.replace(/([a-z0-9]+)\s*\/\s*\(\s*\1\s*\)/g, '1');
+    // 5. 🔥 DIVISION FIX: ប្តូរការចែកតួដូចគ្នាទៅជា 1 (A/A -> 1)
+    cleaned = cleaned.replace(/\b([a-z0-9]+)\s*\/\s*\1\b/g, '1'); // A/A
+    cleaned = cleaned.replace(/\(\s*([a-z0-9]+)\s*\)\s*\/\s*\1/g, '1'); // (A)/A
+    cleaned = cleaned.replace(/([a-z0-9]+)\s*\/\s*\(\s*\1\s*\)/g, '1'); // A/(A)
+    cleaned = cleaned.replace(/\(\s*([a-z0-9]+)\s*\)\s*\/\s*\(\s*\1\s*\)/g, '1'); // (A)/(A)
 
-    // 5d. ករណីមានវង់ក្រចកទាំងសងខាង: (A) / (A)
-    cleaned = cleaned.replace(/\(\s*([a-z0-9]+)\s*\)\s*\/\s*\(\s*\1\s*\)/g, '1');
-
-    // 6. Convert repeated multiplication (A * A) to exponent (A^2)
+    // 6. MULTIPLICATION FIX: ប្តូរការគុណតួដូចគ្នាទៅជាស្វ័យគុណ (A * A -> A^2)
     cleaned = cleaned.replace(/([a-z0-9]+)\s*\*\s*\1/g, '$1^2'); 
 
-    // 7. បង្រួបបង្រួមទម្រង់ (sin(x))^2 ទៅជា sin^2(x)
+    // 7. ដោះវង់ក្រចកចេញពីអក្សរតែមួយដែលស្វ័យគុណ ((k)^2 -> k^2)
+    cleaned = cleaned.replace(/\(\s*([a-z])\s*\)\^/g, '$1^');
+
+    // 8. បង្រួបបង្រួមទម្រង់ (sin(x))^2 ទៅជា sin^2(x)
     cleaned = cleaned.replace(/\(\s*([a-z]+)\s*([^\)]+)\s*\)\s*\^([0-9]+)/g, '$1^$3($2)');
+
+    // 9. លុបចោល Power 1 (^1) ទាំងស្រុង (sin^1x -> sinx)
+    cleaned = cleaned.replace(/\^1/g, ''); 
     
-    // 8. លុបវង់ក្រចកដែលលើសលុបសម្រាប់ស្វ័យគុណសាមញ្ញ (sin^2(x) -> sin^2x, (k)^2 -> k^2)
-    // ដោះស្រាយបញ្ហា (k)^2 ដែលអ្នកបានលើកឡើង
-    cleaned = cleaned.replace(/\(\s*([a-z])\s*\)\^/g, '$1^'); // (k)^2 -> k^2
-    cleaned = cleaned.replace(/([a-z]+)\^([0-9])\s*\(([^()]+)\)/g, '$1^$2$3'); // sin^2(x) -> sin^2x
+    // 10. លុបវង់ក្រចកដែលលើសលុបសម្រាប់ស្វ័យគុណសាមញ្ញ (f^2(x) -> f^2x)
+    cleaned = cleaned.replace(/([a-z]+)\^([0-9]+)\s*\(([^()]+)\)/g, '$1^$2$3'); 
 
     return cleaned.trim();
 }
@@ -197,7 +192,8 @@ app.post('/api/solve-integral', solverLimiter, async (req, res) => {
     try {
         const { prompt } = req.body; 
         
-        // 🔥 ប្រើ Function ថ្មីនៅទីនេះ 🔥
+        // 🔥 Normalize Here 🔥
+        // បំប្លែងគ្រប់ទម្រង់អោយទៅជា Key តែមួយ (ឧ. sin¹⁵x -> sin^15x)
         const normalizedPrompt = normalizeMathInput(prompt);
         const cacheKey = Buffer.from(normalizedPrompt).toString('base64');
         
@@ -231,14 +227,14 @@ app.post('/api/solve-integral', solverLimiter, async (req, res) => {
         if (cacheCollection) {
             try {
                 await cacheCollection.insertOne({
-                    _id: cacheKey, // Save ដោយប្រើ Normalized Key
+                    _id: cacheKey, 
                     result_text: resultText,
                     timestamp: new Date()
                 });
                 console.log(`[CACHE WRITE SUCCESS]`);
             } catch (err) {
                 if (err.code !== 11000) { 
-                    console.error("❌ CACHE WRITE FAILED (មិនធ្ងន់ធ្ងរ):", err.message);
+                    console.error("❌ CACHE WRITE FAILED:", err.message);
                 }
             }
         }
@@ -276,21 +272,13 @@ app.post('/api/chat', async (req, res) => {
     }
 });
 
-
-// --------------------------------------------------------------------------------
-// --- STARTUP FUNCTION ---
-// --------------------------------------------------------------------------------
-
 async function startServer() {
     const isDbConnected = await connectToDatabase();
-    
-    if (!isDbConnected) {
-        console.warn("Server កំពុងចាប់ផ្តើមដោយគ្មាន MongoDB caching។");
-    }
+    if (!isDbConnected) console.warn("Server កំពុងចាប់ផ្តើមដោយគ្មាន MongoDB caching។");
     
     app.listen(PORT, () => {
-        console.log(`Server កំពុងដំណើរការលើ port ${PORT} ដោយប្រើ model ${MODEL_NAME}`);
-        console.log(`Access the App at: https://smart-sinh-i.onrender.com`);
+        console.log(`Server កំពុងដំណើរការលើ port ${PORT}`);
+        console.log(`Access: https://smart-sinh-i.onrender.com`);
     });
 }
 
