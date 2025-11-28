@@ -1,4 +1,4 @@
-// index.js (Final Version V16: God-Mode + ULTIMATE Normalization + CRITICAL POWER CAPTURE FIX)
+// index.js (Final Version V17: God-Mode + ULTIMATE Normalization + BULLETPROOF POWER FIX)
 
 const express = require('express');
 const cors = require('cors');
@@ -56,7 +56,7 @@ async function connectToDatabase() {
     }
 }
 
-// --- 🧹 ULTIMATE SMART NORMALIZATION FUNCTION (V16 - FINAL FIX) ---
+// --- 🧹 ULTIMATE SMART NORMALIZATION FUNCTION (V17 - FINAL FIX) ---
 function normalizeMathInput(input) {
     if (!input) return "";
 
@@ -69,14 +69,10 @@ function normalizeMathInput(input) {
     // 3. ប្តូរលេខស្វ័យគុណ Unicode ទាំងអស់ (⁰-⁹) ទៅជាលេខធម្មតា (0-9)
     cleaned = cleaned.replace(/⁰/g, '0').replace(/¹/g, '1').replace(/²/g, '2').replace(/³/g, '3').replace(/⁴/g, '4').replace(/⁵/g, '5').replace(/⁶/g, '6').replace(/⁷/g, '7').replace(/⁸/g, '8').replace(/⁹/g, '9');
     
-    // 4. 🔥 CRITICAL IMPLICIT POWER FIX (V16):
-    // ធានាថាចាប់យកលេខទាំងមូល (41) និងបញ្ចូល caret ត្រឹមត្រូវ 
-    
-    // 4a. ករណី f41(x) -> f^41(x)
-    cleaned = cleaned.replace(/([a-z]+)([0-9]+)(\()/g, '$1^$2$3');
-    
-    // 4b. ករណី f41x -> f^41x
-    cleaned = cleaned.replace(/([a-z]+)([0-9]+)([a-z])/g, '$1^$2$3');
+    // 4. IMPLICIT POWER FIX (f41x -> f^41x)
+    // ប្រើ Greedy capture ([0-9]+) ដើម្បីធានាថាចាប់បានលេខទាំងអស់ (41, 14, 11)
+    cleaned = cleaned.replace(/([a-z]+)([0-9]+)(\()/g, '$1^$2$3'); // f41(x) -> f^41(x)
+    cleaned = cleaned.replace(/([a-z]+)([0-9]+)([a-z])/g, '$1^$2$3'); // f41x -> f^41x
 
     // 5. CONSOLIDATION FIX
     cleaned = cleaned.replace(/\(([a-z]+)([^\)]+)\)\^([0-9]+)/g, '$1^$3$2'); // (sinx)^n -> sin^n x
@@ -94,9 +90,17 @@ function normalizeMathInput(input) {
     // 8. ដោះវង់ក្រចកចេញពីអក្សរតែមួយដែលស្វ័យគុណ ((k)^2 -> k^2)
     cleaned = cleaned.replace(/\(([a-z])\)\^/g, '$1^');
 
-    // 9. CRITICAL SAFE POWER 1 REMOVAL (V13 Fix)
-    cleaned = cleaned.replace(/\^1([a-z\(])/g, '$1'); 
-    cleaned = cleaned.replace(/\^1$/g, ''); 
+    // 9. 🔥 BULLETPROOF POWER 1 REMOVAL (V17) 🔥
+    // យើងលុប ^1 លុះត្រាតែវាត្រូវបានតាមដោយ "អក្សរ" ឬ "វង់ក្រចក" ប៉ុណ្ណោះ។
+    // ប្រសិនបើវាត្រូវបានតាមដោយលេខ (ដូចជា ^14), Regex នេះនឹងមិនដំណើរការទេ។
+    
+    // 9a. sin^1x -> sinx (លុបព្រោះ x ជាអក្សរ)
+    // 9b. sin^14x -> sin^14x (អត់លុបព្រោះ 4 ជាលេខ, មិនមែនអក្សរ)
+    // 9c. sin^41x -> sin^41x (អត់លុបព្រោះគ្មាន ^1 នៅខាងមុខ)
+    cleaned = cleaned.replace(/\^1([a-z])/g, '$1'); 
+    
+    // 9d. sin^1(x) -> sin(x) (លុបព្រោះ ( ជាវង់ក្រចក)
+    cleaned = cleaned.replace(/\^1\(/g, '(');
 
     return cleaned.trim();
 }
