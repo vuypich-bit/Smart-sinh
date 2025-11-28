@@ -1,4 +1,4 @@
-// index.js (Final Version V13: God-Mode + ULTIMATE Normalization + FIXED POWER 10-19 BUG)
+// index.js (Final Version V14: God-Mode + ULTIMATE Normalization + TRACKING SYSTEM)
 
 const express = require('express');
 const cors = require('cors');
@@ -30,6 +30,7 @@ const uri = "mongodb+srv://testuser:testpass@cluster0.chyfb9f.mongodb.net/?appNa
 const client = new MongoClient(uri);
 
 let cacheCollection; 
+let visitorsCollection; // <--- បន្ថែមថ្មី៖ សម្រាប់រក្សាទុកទិន្នន័យអ្នកចូលមើល
 
 // ភ្ជាប់ទៅ Database
 async function connectToDatabase() {
@@ -40,18 +41,22 @@ async function connectToDatabase() {
     try {
         await client.connect(); 
         const database = client.db("GeminiMathCache"); 
+        
         cacheCollection = database.collection("solutions"); 
+        visitorsCollection = database.collection("daily_visitors"); // <--- បន្ថែមថ្មី
+
         await cacheCollection.estimatedDocumentCount();
-        console.log("✅ MongoDB Connection ជោគជ័យ។ Cache រួចរាល់។");
+        console.log("✅ MongoDB Connection ជោគជ័យ។ Cache & Tracking រួចរាល់។");
         return true;
     } catch (e) {
         console.error("❌ MONGODB FATAL Connection បរាជ័យ។", e.message);
         cacheCollection = null; 
+        visitorsCollection = null;
         return false;
     }
 }
 
-// --- 🧹 ULTIMATE SMART NORMALIZATION FUNCTION (V13 - FINAL SAFE FIX) ---
+// --- 🧹 ULTIMATE SMART NORMALIZATION FUNCTION (V13 Logic Kept Intact) ---
 function normalizeMathInput(input) {
     if (!input) return "";
 
@@ -84,10 +89,7 @@ function normalizeMathInput(input) {
     // 8. ដោះវង់ក្រចកចេញពីអក្សរតែមួយដែលស្វ័យគុណ ((k)^2 -> k^2)
     cleaned = cleaned.replace(/\(([a-z])\)\^/g, '$1^');
 
-    // 9. 🔥 SAFE POWER 1 REMOVAL (BUG FIXED HERE) 🔥
-    // Regex នេះលុប ^1 ចោល លុះត្រាតែតួបន្ទាប់ *មិនមែន* ជាលេខ។
-    // sin^1x -> sinx (លុប)
-    // sin^12x -> sin^12x (អត់លុប)
+    // 9. SAFE POWER 1 REMOVAL (V13 Fix)
     cleaned = cleaned.replace(/\^1(?![0-9])/g, ''); 
 
     return cleaned.trim();
@@ -181,6 +183,23 @@ app.post('/api/solve-integral', solverLimiter, async (req, res) => {
     try {
         const { prompt } = req.body; 
         
+        // --- 📊 VISITOR TRACKING LOGIC (ADDED HERE) ---
+        const userIP = req.ip; 
+        const userAgent = req.headers['user-agent'] || 'Unknown'; 
+        const today = new Date().toISOString().substring(0, 10); 
+
+        if (visitorsCollection) {
+            await visitorsCollection.updateOne(
+                { date: today }, 
+                { 
+                    $addToSet: { unique_ips: userIP }, 
+                    $set: { last_agent_sample: userAgent } 
+                },
+                { upsert: true }
+            );
+        }
+        // --- END TRACKING ---
+
         // 🔥 Normalize Here 🔥
         const normalizedPrompt = normalizeMathInput(prompt);
         const cacheKey = Buffer.from(normalizedPrompt).toString('base64');
@@ -234,7 +253,36 @@ app.post('/api/solve-integral', solverLimiter, async (req, res) => {
 });
 
 // --------------------------------------------------------------------------------
-// --- 2. CHAT ROUTE (/api/chat) ---
+// --- 2. STATS ROUTE (NEW) ---
+// --------------------------------------------------------------------------------
+app.get('/api/daily-stats', async (req, res) => {
+    if (!visitorsCollection) {
+        return res.status(503).json({ error: "Visitors tracking service unavailable." });
+    }
+    try {
+        const dailyData = await visitorsCollection.find({})
+            .sort({ date: -1 }) 
+            .limit(10) 
+            .toArray();
+
+        const stats = dailyData.map(doc => ({
+            date: doc.date,
+            unique_users_count: doc.unique_ips.length,
+            sample_device: doc.last_agent_sample.substring(0, 100) + '...'
+        }));
+
+        res.json({
+            message: "Daily Unique User Count (Last 10 Days)",
+            stats: stats
+        });
+    } catch (error) {
+        console.error("STATS ERROR:", error.message);
+        res.status(500).json({ error: "Failed to retrieve stats." });
+    }
+});
+
+// --------------------------------------------------------------------------------
+// --- 3. CHAT ROUTE (/api/chat) ---
 // --------------------------------------------------------------------------------
 
 app.post('/api/chat', async (req, res) => {
