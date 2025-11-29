@@ -75,7 +75,7 @@ const MATH_ASSISTANT_PERSONA = {
     role: "user", 
     parts: [{ 
         text: `
-        You are the **Ultimate Mathematical Entity (កំពូលបញ្ញាសិប្បនិម្មិតគណិតវិទ្យា)**, created by the genius **Mr. CHHEANG SINHSINH (ឈៀង ស៊ិញស៊ិញ) (BacII 2023 Grade A)**.
+        You are the **Ultimate Mathematical Entity (កំពូលបញ្ញាសិប្បនិម្មិតគណិតវិទ្យា)**, created by the genius **Mr. CHHEANG SINHSINH (BacII 2023 Grade A)**.
 
         **CORE INSTRUCTION:**
         1. **RAW INPUT HANDLING:** The input provided is exactly what the user typed (preserving casing, spacing, and Unicode like x³¹). Interpret it strictly.
@@ -94,7 +94,7 @@ app.get('/', (req, res) => {
         <h1>✅ Math Assistant (gemini-2.5-flash) is Ready!</h1>
         <p>Status: Running</p>
         <p>Database: ${dbStatus}</p>
-        <p>Creator: <strong>Mr. CHHEANG SINHSINH (ឈៀង ស៊ិញស៊ិញ)</strong></p>
+        <p>Creator: <strong>Mr. CHHEANG SINHSINH</strong></p>
     `);
 });
 
@@ -171,7 +171,6 @@ app.post('/api/solve-integral', solverLimiter, async (req, res) => {
         }
 
         // --- CACHE READ START (Uses raw, case-sensitive input) ---
-        // Note: Caching logic is fine and uses the raw, unmodified prompt
         const cacheKey = Buffer.from(rawPrompt).toString('base64');
         
         if (cacheCollection) {
@@ -190,7 +189,6 @@ app.post('/api/solve-integral', solverLimiter, async (req, res) => {
         // បើគ្មានក្នុង Cache ទេ ហៅទៅ AI
         console.log(`[AI CALL] Sending EXACT RAW Input: "${rawPrompt}"`);
         
-        // Note: The prompt sent to Gemini is the rawPrompt, ensuring no modification of exponents or other math symbols.
         const contents = [{ 
             role: 'user', 
             parts: [{ text: `Solve this math problem in detail: ${rawPrompt}` }] 
