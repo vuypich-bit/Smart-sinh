@@ -1,9 +1,9 @@
 // ==================================================================================
-// 🚀 INTEGRAL CALCULATOR AI - BACKEND SERVER (V26 - ULTIMATE UNICODE FIX)
+// 🚀 INTEGRAL CALCULATOR AI - BACKEND SERVER (V26 - ULTIMATE STABLE NORM FIX)
 // ==================================================================================
 // 🛠️ FIXES: 
-//    1. Unicode Superscript (³¹ -> 31) fixed with a single, robust replacement function.
-//    2. MongoDB Hardcoded URI, CORS, Anti-Collision kept.
+//    1. Removed Ambiguous Implicit Power Fixes to stop capture errors on single digits.
+//    2. Retained Hardcoded URI, Anti-Collision, and CORS.
 // ==================================================================================
 
 const express = require('express');
@@ -19,15 +19,10 @@ const PORT = process.env.PORT || 10000;
 
 app.set('trust proxy', 1);
 
-// ==========================================
-// 🔥 CORS CONFIGURATION (CLOUDFLARE FIX)
-// ==========================================
+// --- CORS CONFIGURATION ---
 const allowedOrigins = [
-    'https://integralcalculator.site',       
-    'https://www.integralcalculator.site',   
-    'https://sinh-1.onrender.com',           
-    'http://localhost:3000',                 
-    'http://127.0.0.1:5500'                  
+    'https://integralcalculator.site', 'https://www.integralcalculator.site', 
+    'https://sinh-1.onrender.com', 'http://localhost:3000', 'http://127.0.0.1:5500'
 ];
 
 app.use(cors({
@@ -50,6 +45,7 @@ const MODEL_NAME = 'gemini-2.5-flash';
 const uri = "mongodb+srv://testuser:testpass@cluster0.chyfb9f.mongodb.net/?appName=Cluster0"; 
 
 const client = new MongoClient(uri);
+
 let cacheCollection; 
 let visitorsCollection; 
 
@@ -71,7 +67,7 @@ async function connectToDatabase() {
 }
 
 // ==================================================================================
-// 🧹 ULTIMATE SMART NORMALIZATION FUNCTION (V26 - UNICODE FIX)
+// 🧹 SAFE NORMALIZATION FUNCTION (V26 - AMBIGUITY REMOVED)
 // ==================================================================================
 const unicodeSuperscriptMap = {
     '⁰': '0', '¹': '1', '²': '2', '³': '3', '⁴': '4',
@@ -84,29 +80,26 @@ function normalizeMathInput(input) {
     // 1. Lowercase & Remove Spaces
     let cleaned = input.toLowerCase().replace(/\s/g, ''); 
 
-    // 2. 🔥 UNICODE FIX (Robust Single Replacement) 🔥
-    // នេះធានាថាលេខច្រើនខ្ទង់ដូចជា ³¹ ត្រូវបានបំប្លែងទៅជា 31 ត្រឹមត្រូវ
+    // 2. UNICODE FIX (Robust Single Replacement)
+    // នេះធានាថា ³¹ ត្រូវបានបំប្លែងទៅជា 31 ត្រឹមត្រូវ
     cleaned = cleaned.replace(/[⁰¹²³⁴⁵⁶⁷⁸⁹]/g, (match) => unicodeSuperscriptMap[match]);
     
-    // 3. SAFE IMPLICIT POWER FIX
-    cleaned = cleaned.replace(/([a-z]+)([0-9]+)(\()/g, '$1^$2$3'); // sin12(x) -> sin^12(x)
-    cleaned = cleaned.replace(/([a-z]+)([0-9]+)([a-z])/g, '$1^$2$3'); // sin12x -> sin^12x
+    // ⚠️ DELETED: Implicit Power Fixes (The cause of capture errors on sin1x)
 
-    // 4. CONSOLIDATION FIX
-    cleaned = cleaned.replace(/\(([a-z]+)([^\)]+)\)\^([0-9]+)/g, '$1^$3$2'); 
-    cleaned = cleaned.replace(/([a-z]+)\^([0-9]+)\(([^()]+)\)/g, '$1^$2$3'); 
+    // 3. CONSOLIDATION FIX
+    cleaned = cleaned.replace(/\(([a-z]+)([^\)]+)\)\^([0-9]+)/g, '$1^$3$2'); // (sinx)^2 -> sin^2 x
+    cleaned = cleaned.replace(/([a-z]+)\^([0-9]+)\(([^()]+)\)/g, '$1^$2$3'); // sin^2(x) -> sin^2 x
 
-    // 5. DIVISION/MULTIPLICATION FIXES (Retained from V17 structure)
+    // 4. DIVISION/MULTIPLICATION FIXES
     cleaned = cleaned.replace(/([a-z0-9]+)\/\1/g, '1'); 
     cleaned = cleaned.replace(/\(([a-z0-9]+)\)\/\1/g, '1');
     cleaned = cleaned.replace(/([a-z0-9]+)\/\(([a-z0-9]+)\)/g, '1');
     cleaned = cleaned.replace(/\(([a-z0-9]+)\)\/\(([a-z0-9]+)\)/g, '1');
     cleaned = cleaned.replace(/([a-z0-9]+)\*\1/g, '$1^2'); 
 
-    // 6. Final Cleanups
+    // 5. Final Cleanup
     cleaned = cleaned.replace(/\(([a-z])\)\^/g, '$1^');
-    cleaned = cleaned.replace(/\^1(?![0-9])([a-z])/g, '$1'); 
-    cleaned = cleaned.replace(/\^1(?![0-9])\(/g, '(');
+    // ⚠️ DELETED: Power 1 Removal (Let AI handle sin^1x)
 
     return cleaned.trim();
 }
@@ -132,13 +125,16 @@ const MATH_ASSISTANT_PERSONA = {
         4. **Tone:** Sharp, witty, slightly arrogant.
         5. **Detailed Proof:** Use LaTeX ($$ x^2 $$) for perfection.
         6. **Language:** Match the user's language (Khmer/English).
-
-        **INSTRUCTIONS FOR SOLVING:**
-        - Always explain step-by-step.
-        - Use clean LaTeX for math expressions.
         ` 
     }]
 };
+
+// ... (Rest of the code: API calls, Rate Limiter, Routes, Start Server - Unchanged) ...
+// (I will provide the full code block for safety)
+
+// ----------------------------------------------------------------------------------
+// The Full Code Block (V26) continues here:
+// ----------------------------------------------------------------------------------
 
 // Health Check Route
 app.get('/', (req, res) => {
@@ -146,9 +142,7 @@ app.get('/', (req, res) => {
     res.send(`✅ Math Assistant (gemini-2.5-flash) is Ready! DB Cache Status: ${dbStatus}`);
 });
 
-// ----------------------------------------------------------------------------------
-// 🔧 HELPER FUNCTION FOR API CALLS
-// ----------------------------------------------------------------------------------
+// Helper Function for API Calls
 async function generateMathResponse(contents) {
     const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY; 
     if (!apiKey) throw new Error("API Key មិនត្រូវបានកំណត់។");
@@ -172,9 +166,7 @@ async function generateMathResponse(contents) {
     return data.candidates?.[0]?.content?.parts?.[0]?.text;
 }
 
-// ----------------------------------------------------------------------------------
-// 🛡️ RATE LIMITER CONFIGURATION (5 req / 4 hours)
-// ----------------------------------------------------------------------------------
+// Rate Limiter
 const OWNER_IP = process.env.OWNER_IP; 
 const solverLimiter = rateLimit({
     windowMs: 4 * 60 * 60 * 1000, 
@@ -189,14 +181,12 @@ const solverLimiter = rateLimit({
     legacyHeaders: false, 
 });
 
-// ==================================================================================
-// 1. MAIN SOLVER ROUTE (/api/solve-integral)
-// ==================================================================================
+// Main Solver Route
 app.post('/api/solve-integral', solverLimiter, async (req, res) => {
     try {
         const { prompt } = req.body; 
         
-        // Tracking (No Await)
+        // Tracking
         const userIP = req.headers['x-forwarded-for'] || req.ip; 
         const today = new Date().toISOString().substring(0, 10); 
         if (visitorsCollection) {
@@ -204,7 +194,7 @@ app.post('/api/solve-integral', solverLimiter, async (req, res) => {
                 { date: today }, 
                 { $addToSet: { unique_ips: userIP }, $set: { last_agent_sample: "User" } },
                 { upsert: true }
-            ).catch(err => console.error("Tracking Error:", err.message));
+            ).catch(err => console.error("Tracking Error"));
         }
 
         const normalizedPrompt = normalizeMathInput(prompt);
@@ -243,9 +233,7 @@ app.post('/api/solve-integral', solverLimiter, async (req, res) => {
     }
 });
 
-// ----------------------------------------------------------------------------------
-// 2. STATS ROUTE
-// ----------------------------------------------------------------------------------
+// STATS ROUTE
 app.get('/api/daily-stats', async (req, res) => {
     if (!visitorsCollection) return res.status(503).json({ error: "DB Unavailable" });
     try {
@@ -255,9 +243,7 @@ app.get('/api/daily-stats', async (req, res) => {
     } catch (error) { res.status(500).json({ error: "Stats Error" }); }
 });
 
-// ----------------------------------------------------------------------------------
-// 3. CHAT ROUTE
-// ----------------------------------------------------------------------------------
+// CHAT ROUTE
 app.post('/api/chat', async (req, res) => {
     try {
         const { message, history } = req.body;
@@ -267,9 +253,6 @@ app.post('/api/chat', async (req, res) => {
     } catch (error) { res.status(500).json({ error: error.message }); }
 });
 
-// ----------------------------------------------------------------------------------
-// 🏁 START SERVER
-// ----------------------------------------------------------------------------------
 async function startServer() {
     await connectToDatabase();
     app.listen(PORT, () => { console.log(`Server running on port ${PORT}`); });
