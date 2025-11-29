@@ -1,5 +1,5 @@
 // ==================================================================================
-// 🚀 INTEGRAL CALCULATOR AI - BACKEND SERVER (V34 - FINAL NAME & TITLE FIX)
+// 🚀 INTEGRAL CALCULATOR AI - BACKEND SERVER (V35 - FINAL ABSOLUTE NAME FIX)
 // ==================================================================================
 // Developed by: លោក ឈៀង ស៊ិញស៊ិញ (BacII 2023 Grade A)
 // Powered by: Google Gemini 2.5 Flash & MongoDB Atlas
@@ -65,17 +65,19 @@ async function connectToDatabase() {
 }
 
 // ----------------------------------------------------------------------------------
-// ⚠️ V34: NO NORMALIZATION FUNCTION (DELETED) ⚠️
+// ⚠️ V35: NO NORMALIZATION FUNCTION (DELETED) ⚠️
 // ----------------------------------------------------------------------------------
 
 // ==================================================================================
-// 🧠 THE BRAIN: SYSTEM INSTRUCTION (TITLE CORRECTED)
+// 🧠 THE BRAIN: SYSTEM INSTRUCTION (FORCED NAME CORRECTION)
 // ==================================================================================
 const MATH_ASSISTANT_PERSONA = {
     role: "user", 
     parts: [{ 
         text: `
-        You are the **Ultimate Mathematical Entity (កំពូលបញ្ញាសិប្បនិម្មិតគណិតវិទ្យា)**, created by the genius **Mr. CHHIEANG SINH SINH (BacII 2023 Grade A)**.
+        You are the **Ultimate Mathematical Entity (កំពូលបញ្ញាសិប្បនិម្មិតគណិតវិទ្យា)**, created by the genius **លោក ឈៀង ស៊ិញស៊ិញ (Mr. CHHIEANG SINH SINH, BacII 2023 Grade A)**.
+
+        **IMPORTANT: The creator's correct name is លោក ឈៀង ស៊ិញស៊ិញ. Do NOT use ឈាង ស៊ីនស៊ីន or any similar variant.**
 
         **CORE INSTRUCTION:**
         1. **RAW INPUT HANDLING:** The input provided is exactly what the user typed (preserving casing, spacing, and Unicode like x³¹). Interpret it strictly.
@@ -86,7 +88,7 @@ const MATH_ASSISTANT_PERSONA = {
 };
 
 // ----------------------------------------------------------------------------------
-// 👋 HEALTH CHECK ROUTE (TITLE CORRECTED)
+// 👋 HEALTH CHECK ROUTE (NAME CORRECTED TO ឈៀង ស៊ិញស៊ិញ)
 // ----------------------------------------------------------------------------------
 app.get('/', (req, res) => {
     const dbStatus = cacheCollection ? "Connected ✅ (Caching Active)" : "Disconnected ❌ (Caching Disabled)";
@@ -154,7 +156,7 @@ const solverLimiter = rateLimit({
 // ==================================================================================
 app.post('/api/solve-integral', solverLimiter, async (req, res) => {
     try {
-        // 🔥 V34: EXACT RAW INPUT - NO MODIFICATION WHATSOEVER 🔥
+        // 🔥 V35: EXACT RAW INPUT - NO MODIFICATION WHATSOEVER 🔥
         const rawPrompt = req.body.prompt; 
 
         if (!rawPrompt) return res.status(400).json({ error: "No input provided" });
@@ -283,7 +285,7 @@ app.post('/api/chat', async (req, res) => {
 // ==================================================================================
 async function startServer() {
     console.log("----------------------------------------------------------------");
-    console.log("🚀 STARTING INTEGRAL CALCULATOR BACKEND (V34-FINAL NAME & TITLE FIX)...");
+    console.log("🚀 STARTING INTEGRAL CALCULATOR BACKEND (V35-FINAL ABSOLUTE NAME FIX)...");
     console.log("----------------------------------------------------------------");
 
     const isDbConnected = await connectToDatabase();
