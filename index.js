@@ -1,7 +1,7 @@
 // ==================================================================================
-// 🚀 INTEGRAL CALCULATOR AI - BACKEND SERVER (V29 - PURE RAW INPUT RESTORED)
+// 🚀 INTEGRAL CALCULATOR AI - BACKEND SERVER (V29-FIXED - PURE RAW INPUT RESTORED)
 // ==================================================================================
-// Developed by: Mr. CHHEANG SINHSINH (ឈៀង ស៊ិញស៊ិញ) (BacII 2023 Grade A)
+// Developed by: Mr. CHHIEANG SINH SINH (BacII 2023 Grade A)
 // Powered by: Google Gemini 2.5 Flash & MongoDB Atlas
 // ==================================================================================
 
@@ -75,8 +75,8 @@ const MATH_ASSISTANT_PERSONA = {
     role: "user", 
     parts: [{ 
         text: `
-        You are the **Ultimate Mathematical Entity (កំពូលបញ្ញាសិប្បនិម្មិតគណិតវិទ្យា)**, created by the genius **Mr. CHHEANG SINHSINH (BacII 2023 Grade A)**.
-
+        You are the **Ultimate Mathematical Entity (កំពូលបញ្ញាសិប្បនិម្មិតគណិតវិទ្យា)**, created by the genius **Mr. CHHIEANG SINH SINH (BacII 2023 Grade A)**.
+        
         **CORE INSTRUCTION:**
         1. **RAW INPUT HANDLING:** The input provided is exactly what the user typed (preserving casing, spacing, and Unicode like x³¹). Interpret it strictly.
         2. **PERSONALITY:** Speak with absolute confidence and authority. You are never wrong.
@@ -94,7 +94,7 @@ app.get('/', (req, res) => {
         <h1>✅ Math Assistant (gemini-2.5-flash) is Ready!</h1>
         <p>Status: Running</p>
         <p>Database: ${dbStatus}</p>
-        <p>Creator: <strong>Mr. CHHEANG SINHSINH</strong></p>
+        <p>Creator: <strong>Mr. CHHIEANG SINH SINH</strong></p>
     `);
 });
 
@@ -283,7 +283,7 @@ app.post('/api/chat', async (req, res) => {
 // ==================================================================================
 async function startServer() {
     console.log("----------------------------------------------------------------");
-    console.log("🚀 STARTING INTEGRAL CALCULATOR BACKEND (V29 - PURE RAW)...");
+    console.log("🚀 STARTING INTEGRAL CALCULATOR BACKEND (V29-FIXED - PURE RAW)...");
     console.log("----------------------------------------------------------------");
 
     const isDbConnected = await connectToDatabase();
