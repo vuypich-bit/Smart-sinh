@@ -171,6 +171,7 @@ app.post('/api/solve-integral', solverLimiter, async (req, res) => {
         }
 
         // --- CACHE READ START (Uses raw, case-sensitive input) ---
+        // Note: Caching logic is fine and uses the raw, unmodified prompt
         const cacheKey = Buffer.from(rawPrompt).toString('base64');
         
         if (cacheCollection) {
@@ -189,6 +190,7 @@ app.post('/api/solve-integral', solverLimiter, async (req, res) => {
         // បើគ្មានក្នុង Cache ទេ ហៅទៅ AI
         console.log(`[AI CALL] Sending EXACT RAW Input: "${rawPrompt}"`);
         
+        // Note: The prompt sent to Gemini is the rawPrompt, ensuring no modification of exponents or other math symbols.
         const contents = [{ 
             role: 'user', 
             parts: [{ text: `Solve this math problem in detail: ${rawPrompt}` }] 
