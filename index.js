@@ -1,5 +1,5 @@
 // ==================================================================================
-// 🚀 INTEGRAL CALCULATOR AI - BACKEND SERVER (V27 - CASE INSENSITIVE MODE)
+// 🚀 INTEGRAL CALCULATOR AI - BACKEND SERVER (V28 - ABSOLUTE RAW INPUT)
 // ==================================================================================
 // Developed by: Mr. CHHEANG SINHSINH (BacII 2023 Grade A)
 // Powered by: Google Gemini 2.5 Flash & MongoDB Atlas
@@ -60,26 +60,12 @@ async function connectToDatabase() {
     }
 }
 
-// ==================================================================================
-// 🧹 MINIMAL NORMALIZATION FUNCTION (CASE INSENSITIVE KEY)
-// ==================================================================================
-// មុខងារនេះត្រូវបានប្រើដើម្បីធានាថា "SIN(x)" និង "sin(x)" មាន Cache Key ដូចគ្នា
-function normalizeMathInput(input) {
-    if (!input) return "";
-
-    // 1. ប្តូរទៅជាអក្សរតូចទាំងអស់ (Case Insensitivity)
-    let cleaned = input.toLowerCase(); 
-    
-    // 2. លុបចន្លោះខាងដើមនិងខាងចុង (Trim)
-    cleaned = cleaned.trim();
-
-    // ⚠️ ចំណាំ៖ មិនមាន Regex កែលេខស្វ័យគុណដូចកូដ V23 ទៀតទេ!
-    
-    return cleaned;
-}
+// ----------------------------------------------------------------------------------
+// ⚠️ NO NORMALIZATION FUNCTION (V28 - DELETED)
+// ----------------------------------------------------------------------------------
 
 // ==================================================================================
-// 🧠 SYSTEM INSTRUCTION
+// 🧠 SYSTEM INSTRUCTION (Emphasizing Raw Input)
 // ==================================================================================
 const MATH_ASSISTANT_PERSONA = {
     role: "user", 
@@ -87,9 +73,9 @@ const MATH_ASSISTANT_PERSONA = {
         text: `
         You are the **Ultimate Mathematical Entity**. Created by **Mr. CHHEANG SINHSINH (BacII 2023 Grade A)**.
         
-        **RULES:**
-        1. **CASE INSENSITIVITY:** The input may have mixed casing (e.g., Sin vs sin). Treat all mathematical variables and functions as case-insensitive.
-        2. **UNICODE EXPONENTS:** x²¹ is x^21. Do not simplify it.
+        **RULES (STRICTEST MODE):**
+        1. **ABSOLUTE RAW INPUT:** The input string is sent without any modification. This includes preserving all spaces, all casing (Sin vs sin), and all Unicode characters (like x³¹).
+        2. **INTERPRETATION:** You must interpret all characters, especially Unicode exponents, literally as the user intended (e.g., x³¹ means x to the power of 31).
         3. **OUTPUT:** Use LaTeX for math. Explain step-by-step.
         ` 
     }]
@@ -140,43 +126,40 @@ const solverLimiter = rateLimit({
 });
 
 // ==================================================================================
-// 1. MAIN SOLVER ROUTE (CASE INSENSITIVE)
+// 1. MAIN SOLVER ROUTE (ABSOLUTE RAW INPUT)
 // ==================================================================================
 app.post('/api/solve-integral', solverLimiter, async (req, res) => {
     try {
-        const { prompt } = req.body; 
+        // 🔥 V28 UPDATE: យក Input ទាំងស្រុង ដោយគ្មានការកែប្រែអ្វីទាំងអស់ 🔥
+        const rawPrompt = req.body.prompt; 
 
-        if (!prompt) return res.status(400).json({ error: "No input provided" });
+        if (!rawPrompt) return res.status(400).json({ error: "No input provided" });
 
-        // --- 📊 TRACKING ---
+        // --- TRACKING ---
         const userIP = req.headers['x-forwarded-for'] || req.ip; 
         const today = new Date().toISOString().substring(0, 10); 
         if (visitorsCollection) {
             visitorsCollection.updateOne({ date: today }, { $addToSet: { unique_ips: userIP } }, { upsert: true }).catch(console.error);
         }
 
-        // 🔥 NORMALIZE INPUT (Lowercase + Trim) 🔥
-        // ឧទាហរណ៍៖ "  SIN(x)  " នឹងក្លាយជា "sin(x)"
-        const normalizedPrompt = normalizeMathInput(prompt);
-
-        // --- CACHE (Using Normalized Key) ---
-        const cacheKey = Buffer.from(normalizedPrompt).toString('base64');
+        // --- CACHE (Raw String Key) ---
+        // cacheKey នឹងរក្សាអក្សរធំ/តូច និងតួអក្សរ Unicode ទាំងអស់។
+        const cacheKey = Buffer.from(rawPrompt).toString('base64');
         
         if (cacheCollection) {
             const cachedResult = await cacheCollection.findOne({ _id: cacheKey });
             if (cachedResult) {
-                console.log(`[CACHE HIT] Normalized Input: "${normalizedPrompt}"`);
+                console.log(`[CACHE HIT] EXACT RAW Input: "${rawPrompt}"`);
                 return res.json({ text: cachedResult.result_text, source: "cache" });
             }
         }
         
         // --- AI CALL ---
-        // យើងផ្ញើ input ដែលបាន Normalize (Lowercase) ទៅ AI
-        console.log(`[AI CALL] Sending Normalized Input: "${normalizedPrompt}"`);
+        console.log(`[AI CALL] Sending ABSOLUTE RAW Input: "${rawPrompt}"`);
         
         const contents = [{ 
             role: 'user', 
-            parts: [{ text: `Solve this: ${normalizedPrompt}` }] 
+            parts: [{ text: `Solve this: ${rawPrompt}` }] 
         }];
 
         let resultText;
@@ -191,7 +174,7 @@ app.post('/api/solve-integral', solverLimiter, async (req, res) => {
 
         // --- SAVE TO CACHE ---
         if (cacheCollection) {
-            // សន្សំដោយប្រើ key ពី normalizedPrompt
+            // សន្សំដោយប្រើ rawPrompt ជា Key ដើម
             cacheCollection.insertOne({ _id: cacheKey, result_text: resultText, timestamp: new Date() }).catch(() => {});
         }
 
@@ -229,7 +212,7 @@ app.post('/api/chat', async (req, res) => {
 async function startServer() {
     await connectToDatabase();
     app.listen(PORT, () => {
-        console.log(`🚀 Server V27 (CASE INSENSITIVE) running on port ${PORT}`);
+        console.log(`🚀 Server V28 (ABSOLUTE RAW INPUT) running on port ${PORT}`);
     });
 }
 
