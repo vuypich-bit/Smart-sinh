@@ -1,5 +1,5 @@
 // ==================================================================================
-// 🚀 INTEGRAL CALCULATOR AI - BACKEND SERVER (V29-FIXED - PURE RAW INPUT RESTORED)
+// 🚀 INTEGRAL CALCULATOR AI - BACKEND SERVER (V32-FINAL NAME FIX)
 // ==================================================================================
 // Developed by: Mr. CHHIEANG SINH SINH (BacII 2023 Grade A)
 // Powered by: Google Gemini 2.5 Flash & MongoDB Atlas
@@ -65,18 +65,18 @@ async function connectToDatabase() {
 }
 
 // ----------------------------------------------------------------------------------
-// ⚠️ V29: NO NORMALIZATION FUNCTION (DELETED) ⚠️
+// ⚠️ V32: NO NORMALIZATION FUNCTION (DELETED) ⚠️
 // ----------------------------------------------------------------------------------
 
 // ==================================================================================
-// 🧠 THE BRAIN: SYSTEM INSTRUCTION (RAW INPUT)
+// 🧠 THE BRAIN: SYSTEM INSTRUCTION (NAME CORRECTED)
 // ==================================================================================
 const MATH_ASSISTANT_PERSONA = {
     role: "user", 
     parts: [{ 
         text: `
         You are the **Ultimate Mathematical Entity (កំពូលបញ្ញាសិប្បនិម្មិតគណិតវិទ្យា)**, created by the genius **Mr. CHHIEANG SINH SINH (BacII 2023 Grade A)**.
-        
+
         **CORE INSTRUCTION:**
         1. **RAW INPUT HANDLING:** The input provided is exactly what the user typed (preserving casing, spacing, and Unicode like x³¹). Interpret it strictly.
         2. **PERSONALITY:** Speak with absolute confidence and authority. You are never wrong.
@@ -86,7 +86,7 @@ const MATH_ASSISTANT_PERSONA = {
 };
 
 // ----------------------------------------------------------------------------------
-// 👋 HEALTH CHECK ROUTE (ENSURES 'Cannot GET /' IS FIXED)
+// 👋 HEALTH CHECK ROUTE (NAME CORRECTED)
 // ----------------------------------------------------------------------------------
 app.get('/', (req, res) => {
     const dbStatus = cacheCollection ? "Connected ✅ (Caching Active)" : "Disconnected ❌ (Caching Disabled)";
@@ -154,7 +154,7 @@ const solverLimiter = rateLimit({
 // ==================================================================================
 app.post('/api/solve-integral', solverLimiter, async (req, res) => {
     try {
-        // 🔥 V29: EXACT RAW INPUT - NO MODIFICATION WHATSOEVER 🔥
+        // 🔥 V32: EXACT RAW INPUT - NO MODIFICATION WHATSOEVER 🔥
         const rawPrompt = req.body.prompt; 
 
         if (!rawPrompt) return res.status(400).json({ error: "No input provided" });
@@ -283,7 +283,7 @@ app.post('/api/chat', async (req, res) => {
 // ==================================================================================
 async function startServer() {
     console.log("----------------------------------------------------------------");
-    console.log("🚀 STARTING INTEGRAL CALCULATOR BACKEND (V29-FIXED - PURE RAW)...");
+    console.log("🚀 STARTING INTEGRAL CALCULATOR BACKEND (V32-FINAL NAME FIX)...");
     console.log("----------------------------------------------------------------");
 
     const isDbConnected = await connectToDatabase();
