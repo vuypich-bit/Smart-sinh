@@ -1,7 +1,7 @@
 // ==================================================================================
-// 🚀 INTEGRAL CALCULATOR AI - BACKEND SERVER (V33-FINAL-NAME-FIX)
+// 🚀 INTEGRAL CALCULATOR AI - BACKEND SERVER (V34 - FINAL NAME & TITLE FIX)
 // ==================================================================================
-// Developed by: ឯកឧត្តម ឈៀង ស៊ិញស៊ិញ (BacII 2023 Grade A)
+// Developed by: លោក ឈៀង ស៊ិញស៊ិញ (BacII 2023 Grade A)
 // Powered by: Google Gemini 2.5 Flash & MongoDB Atlas
 // ==================================================================================
 
@@ -65,11 +65,11 @@ async function connectToDatabase() {
 }
 
 // ----------------------------------------------------------------------------------
-// ⚠️ V33: NO NORMALIZATION FUNCTION (DELETED) ⚠️
+// ⚠️ V34: NO NORMALIZATION FUNCTION (DELETED) ⚠️
 // ----------------------------------------------------------------------------------
 
 // ==================================================================================
-// 🧠 THE BRAIN: SYSTEM INSTRUCTION (NAME CORRECTED)
+// 🧠 THE BRAIN: SYSTEM INSTRUCTION (TITLE CORRECTED)
 // ==================================================================================
 const MATH_ASSISTANT_PERSONA = {
     role: "user", 
@@ -86,7 +86,7 @@ const MATH_ASSISTANT_PERSONA = {
 };
 
 // ----------------------------------------------------------------------------------
-// 👋 HEALTH CHECK ROUTE (NAME CORRECTED TO ឈៀង ស៊ិញស៊ិញ)
+// 👋 HEALTH CHECK ROUTE (TITLE CORRECTED)
 // ----------------------------------------------------------------------------------
 app.get('/', (req, res) => {
     const dbStatus = cacheCollection ? "Connected ✅ (Caching Active)" : "Disconnected ❌ (Caching Disabled)";
@@ -94,7 +94,7 @@ app.get('/', (req, res) => {
         <h1>✅ Math Assistant (gemini-2.5-flash) is Ready!</h1>
         <p>Status: Running</p>
         <p>Database: ${dbStatus}</p>
-        <p>Creator: <strong>ឯកឧត្តម ឈៀង ស៊ិញស៊ិញ</strong></p>
+        <p>Creator: <strong>លោក ឈៀង ស៊ិញស៊ិញ</strong></p>
     `);
 });
 
@@ -154,7 +154,7 @@ const solverLimiter = rateLimit({
 // ==================================================================================
 app.post('/api/solve-integral', solverLimiter, async (req, res) => {
     try {
-        // 🔥 V33: EXACT RAW INPUT - NO MODIFICATION WHATSOEVER 🔥
+        // 🔥 V34: EXACT RAW INPUT - NO MODIFICATION WHATSOEVER 🔥
         const rawPrompt = req.body.prompt; 
 
         if (!rawPrompt) return res.status(400).json({ error: "No input provided" });
@@ -283,7 +283,7 @@ app.post('/api/chat', async (req, res) => {
 // ==================================================================================
 async function startServer() {
     console.log("----------------------------------------------------------------");
-    console.log("🚀 STARTING INTEGRAL CALCULATOR BACKEND (V33-FINAL NAME FIX)...");
+    console.log("🚀 STARTING INTEGRAL CALCULATOR BACKEND (V34-FINAL NAME & TITLE FIX)...");
     console.log("----------------------------------------------------------------");
 
     const isDbConnected = await connectToDatabase();
