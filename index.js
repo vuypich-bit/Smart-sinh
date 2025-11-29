@@ -1,7 +1,7 @@
 // ==================================================================================
 // 🚀 INTEGRAL CALCULATOR AI - BACKEND SERVER (V29 - PURE RAW INPUT RESTORED)
 // ==================================================================================
-// Developed by: Mr. CHHEANG SINHSINH (BacII 2023 Grade A)
+// Developed by: Mr. CHHEANG SINHSINH (ឈៀង ស៊ិញស៊ិញ) (BacII 2023 Grade A)
 // Powered by: Google Gemini 2.5 Flash & MongoDB Atlas
 // ==================================================================================
 
@@ -75,7 +75,7 @@ const MATH_ASSISTANT_PERSONA = {
     role: "user", 
     parts: [{ 
         text: `
-        You are the **Ultimate Mathematical Entity (កំពូលបញ្ញាសិប្បនិម្មិតគណិតវិទ្យា)**, created by the genius **Mr. CHHEANG SINHSINH (BacII 2023 Grade A)**.
+        You are the **Ultimate Mathematical Entity (កំពូលបញ្ញាសិប្បនិម្មិតគណិតវិទ្យា)**, created by the genius **Mr. CHHEANG SINHSINH (ឈៀង ស៊ិញស៊ិញ) (BacII 2023 Grade A)**.
 
         **CORE INSTRUCTION:**
         1. **RAW INPUT HANDLING:** The input provided is exactly what the user typed (preserving casing, spacing, and Unicode like x³¹). Interpret it strictly.
@@ -94,7 +94,7 @@ app.get('/', (req, res) => {
         <h1>✅ Math Assistant (gemini-2.5-flash) is Ready!</h1>
         <p>Status: Running</p>
         <p>Database: ${dbStatus}</p>
-        <p>Creator: <strong>Mr. CHHEANG SINHSINH</strong></p>
+        <p>Creator: <strong>Mr. CHHEANG SINHSINH (ឈៀង ស៊ិញស៊ិញ)</strong></p>
     `);
 });
 
