@@ -1,27 +1,20 @@
 // ==================================================================================
-// 🚀 INTEGRAL CALCULATOR AI - BACKEND SERVER (V29 - PURE RAW INPUT RESTORED)
+// 🚀 INTEGRAL CALCULATOR AI - BACKEND SERVER (V30 - HYBRID SAFE CACHING)
 // ==================================================================================
-// Developed by: Mr. CHHEANG SINHSINH (BacII 2023 Grade A)
-// Powered by: Google Gemini 2.5 Flash & MongoDB Atlas
+// ប្រើ Case Insensitive សម្រាប់ Cache Key ប៉ុន្តែប្រើ Raw Prompt សម្រាប់ AI Call
 // ==================================================================================
 
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
-
-// 1. IMPORT RATE LIMIT TO PREVENT ABUSE
 const rateLimit = require('express-rate-limit'); 
-
-// 2. IMPORT MONGODB DRIVER 
 const { MongoClient } = require('mongodb');
 
-// Load environment variables
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 10000; 
 
-// 🚨 IMPORTANT FOR RENDER/CLOUD DEPLOYMENT 🚨
 app.set('trust proxy', 1);
 
 // 🔥 CORS CONFIGURATION
@@ -64,12 +57,22 @@ async function connectToDatabase() {
     }
 }
 
-// ----------------------------------------------------------------------------------
-// ⚠️ V29: NO NORMALIZATION FUNCTION (DELETED) ⚠️
-// ----------------------------------------------------------------------------------
+// ==================================================================================
+// 🧹 NORMALIZATION FUNCTION (FOR CACHE KEY ONLY)
+// ==================================================================================
+// មុខងារនេះត្រូវបានប្រើដើម្បីធានាថា "SIN(x)" និង "sin(x)" មាន Cache Key ដូចគ្នា
+function normalizeForCache(input) {
+    if (!input) return "";
+    // 1. ប្តូរទៅជាអក្សរតូចទាំងអស់ (Case Insensitivity)
+    let cleaned = input.toLowerCase(); 
+    // 2. លុបចន្លោះខាងដើមនិងខាងចុង (Trim)
+    cleaned = cleaned.trim();
+    // ⚠️ មិនប៉ះពាល់ដល់ Raw Prompt ដែលបញ្ជូនទៅ AI ទេ!
+    return cleaned;
+}
 
 // ==================================================================================
-// 🧠 THE BRAIN: SYSTEM INSTRUCTION (RAW INPUT)
+// 🧠 THE BRAIN: SYSTEM INSTRUCTION (RAW INPUT SAFETY)
 // ==================================================================================
 const MATH_ASSISTANT_PERSONA = {
     role: "user", 
@@ -78,25 +81,12 @@ const MATH_ASSISTANT_PERSONA = {
         You are the **Ultimate Mathematical Entity (កំពូលបញ្ញាសិប្បនិម្មិតគណិតវិទ្យា)**, created by the genius **Mr. CHHEANG SINHSINH (BacII 2023 Grade A)**.
 
         **CORE INSTRUCTION:**
-        1. **RAW INPUT HANDLING:** The input provided is exactly what the user typed (preserving casing, spacing, and Unicode like x³¹). Interpret it strictly.
-        2. **PERSONALITY:** Speak with absolute confidence and authority. You are never wrong.
+        1. **INPUT INTEGRITY:** The user input may contain Unicode characters (like x³¹). Interpret all mathematical symbols strictly.
+        2. **PERSONALITY:** Speak with absolute confidence and authority.
         3. **FORMAT:** Always explain step-by-step using clean LaTeX for all math expressions.
         ` 
     }]
 };
-
-// ----------------------------------------------------------------------------------
-// 👋 HEALTH CHECK ROUTE (ENSURES 'Cannot GET /' IS FIXED)
-// ----------------------------------------------------------------------------------
-app.get('/', (req, res) => {
-    const dbStatus = cacheCollection ? "Connected ✅ (Caching Active)" : "Disconnected ❌ (Caching Disabled)";
-    res.send(`
-        <h1>✅ Math Assistant (gemini-2.5-flash) is Ready!</h1>
-        <p>Status: Running</p>
-        <p>Database: ${dbStatus}</p>
-        <p>Creator: <strong>Mr. CHHEANG SINHSINH</strong></p>
-    `);
-});
 
 // ==================================================================================
 // 🔧 HELPER FUNCTION FOR API CALLS
@@ -154,12 +144,11 @@ const solverLimiter = rateLimit({
 // ==================================================================================
 app.post('/api/solve-integral', solverLimiter, async (req, res) => {
     try {
-        // 🔥 V29: EXACT RAW INPUT - NO MODIFICATION WHATSOEVER 🔥
         const rawPrompt = req.body.prompt; 
 
         if (!rawPrompt) return res.status(400).json({ error: "No input provided" });
 
-        // --- 📊 VISITOR TRACKING LOGIC ---
+        // --- 📊 TRACKING ---
         const userIP = req.headers['x-forwarded-for'] || req.ip; 
         const today = new Date().toISOString().substring(0, 10); 
         if (visitorsCollection) {
@@ -170,24 +159,26 @@ app.post('/api/solve-integral', solverLimiter, async (req, res) => {
             ).catch(err => console.error("Tracking Error:", err.message));
         }
 
-        // --- CACHE READ START (Uses raw, case-sensitive input) ---
-        const cacheKey = Buffer.from(rawPrompt).toString('base64');
+        // 🔥 HYBRID CACHE LOGIC 🔥
+        // 1. ធ្វើ Normalize ដើម្បីបង្កើត Case-Insensitive Key
+        const normalizedKeyInput = normalizeForCache(rawPrompt); 
+        const cacheKey = Buffer.from(normalizedKeyInput).toString('base64');
         
+        // 2. ពិនិត្យ Cache
         if (cacheCollection) {
             try {
                 const cachedResult = await cacheCollection.findOne({ _id: cacheKey });
                 if (cachedResult) {
-                    console.log(`[CACHE HIT] EXACT RAW Input: "${rawPrompt}"`);
+                    console.log(`[CACHE HIT] Normalized Input: "${normalizedKeyInput}"`);
                     return res.json({ text: cachedResult.result_text, source: "cache" });
                 }
             } catch (err) {
                 console.error("❌ CACHE READ FAILED:", err.message);
             }
         }
-        // --- CACHE READ END ---
         
-        // បើគ្មានក្នុង Cache ទេ ហៅទៅ AI
-        console.log(`[AI CALL] Sending EXACT RAW Input: "${rawPrompt}"`);
+        // 3. ហៅទៅ AI (បញ្ជូន RAW Prompt ដើម)
+        console.log(`[AI CALL] Sending RAW Input: "${rawPrompt}"`);
         
         const contents = [{ 
             role: 'user', 
@@ -206,24 +197,23 @@ app.post('/api/solve-integral', solverLimiter, async (req, res) => {
 
         if (!resultText) return res.status(500).json({ error: "AI មិនបានផ្តល់ខ្លឹមសារទេ។" });
 
-        // --- CACHE WRITE START ---
+        // 4. សរសេរចូល Cache (ដោយប្រើ Normalized Key)
         if (cacheCollection) {
             try {
                 await cacheCollection.insertOne({
-                    _id: cacheKey,
+                    _id: cacheKey, // Uses the case-insensitive key
                     result_text: resultText,
                     timestamp: new Date()
                 });
                 console.log(`[CACHE WRITE SUCCESS]`);
             } catch (err) {
                 if (err.code === 11000) {
-                    console.warn(`[CACHE WRITE IGNORED] Key already exists (Collision avoided).`);
+                    console.warn(`[CACHE WRITE IGNORED] Key already exists.`);
                 } else {
                     console.error("❌ CACHE WRITE FAILED:", err.message);
                 }
             }
         }
-        // --- CACHE WRITE END ---
 
         res.json({ text: resultText, source: "api" });
 
@@ -233,9 +223,26 @@ app.post('/api/solve-integral', solverLimiter, async (req, res) => {
     }
 });
 
-// ==================================================================================
-// 2. STATS ROUTE (/api/daily-stats)
-// ==================================================================================
+// ----------------------------------------------------------------------------------
+// 👋 HEALTH CHECK ROUTE (V30)
+// ----------------------------------------------------------------------------------
+app.get('/', (req, res) => {
+    const dbStatus = cacheCollection ? "Connected ✅ (Caching Active)" : "Disconnected ❌ (Caching Disabled)";
+    res.send(`
+        <h1>✅ Math Assistant (gemini-2.5-flash) is Ready!</h1>
+        <p>Status: Running</p>
+        <p>Version: V30 - Hybrid Safe Caching</p>
+        <p>Database: ${dbStatus}</p>
+        <p>Creator: <strong>Mr. CHHEANG SINHSINH</strong></p>
+    `);
+});
+
+
+// ----------------------------------------------------------------------------------
+// Other Routes (Stats, Chat) remains unchanged
+// ----------------------------------------------------------------------------------
+
+// [STATISTICS ROUTE HERE] ... (unchanged)
 app.get('/api/daily-stats', async (req, res) => {
     if (!visitorsCollection) {
         return res.status(503).json({ error: "Visitors tracking service unavailable." });
@@ -262,9 +269,7 @@ app.get('/api/daily-stats', async (req, res) => {
     }
 });
 
-// ==================================================================================
-// 3. CHAT ROUTE (/api/chat)
-// ==================================================================================
+// [CHAT ROUTE HERE] ... (unchanged)
 app.post('/api/chat', async (req, res) => {
     try {
         const { message, history } = req.body;
@@ -278,12 +283,13 @@ app.post('/api/chat', async (req, res) => {
     }
 });
 
+
 // ==================================================================================
 // 🏁 START SERVER
 // ==================================================================================
 async function startServer() {
     console.log("----------------------------------------------------------------");
-    console.log("🚀 STARTING INTEGRAL CALCULATOR BACKEND (V29 - PURE RAW)...");
+    console.log("🚀 STARTING INTEGRAL CALCULATOR BACKEND (V30 - HYBRID SAFE CACHING)...");
     console.log("----------------------------------------------------------------");
 
     const isDbConnected = await connectToDatabase();
