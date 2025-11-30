@@ -7,6 +7,7 @@
     "start": "node index.js"
   },
   "dependencies": {
+    "cohere-ai": "^7.10.0",  <-- ⭐ បន្ថែមបន្ទាត់នេះ ⭐
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
