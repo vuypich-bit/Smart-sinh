@@ -41,7 +41,7 @@ app.use(cors({
 app.use(express.json());
 
 // --- Configuration ---
-const MODEL_NAME = 'command-r-plus'; // ⭐⭐ កែសម្រួលទៅ Command R+ ⭐⭐
+const MODEL_NAME = 'command-r'; // ⭐⭐ កែសម្រួលទៅ Command R+ ⭐⭐
 
 // ⚠️ MONGODB CONNECTION SETUP
 const uri = "mongodb+srv://testuser:testpass@cluster0.chyfb9f.mongodb.net/?appName=Cluster0"; 
