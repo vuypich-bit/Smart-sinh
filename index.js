@@ -1,8 +1,8 @@
 // ==================================================================================
-// 🚀 INTEGRAL CALCULATOR AI - BACKEND SERVER (V35 - FINAL ABSOLUTE NAME FIX)
+// 🚀 INTEGRAL CALCULATOR AI - BACKEND SERVER (FINAL SOLUTION: GROQ LLAMA 3 70B)
 // ==================================================================================
 // Developed by: លោក ឈៀង ស៊ិញស៊ិញ (BacII 2023 Grade A)
-// Powered by: Google Gemini 2.5 Flash & MongoDB Atlas
+// Powered by: Groq (llama3-70b-8192) & MongoDB Atlas 
 // ==================================================================================
 
 const express = require('express');
@@ -14,6 +14,9 @@ const rateLimit = require('express-rate-limit');
 
 // 2. IMPORT MONGODB DRIVER 
 const { MongoClient } = require('mongodb');
+
+// ⭐ IMPORT GROQ SDK ⭐
+const Groq = require('groq-sdk'); 
 
 // Load environment variables
 dotenv.config();
@@ -38,7 +41,8 @@ app.use(cors({
 app.use(express.json());
 
 // --- Configuration ---
-const MODEL_NAME = 'gemini-2.5-flash';
+// ⭐⭐ UPDATED: ប្រើ Llama 3 70B ដែលខ្លាំងជាងគេ ⭐⭐
+const MODEL_NAME = 'llama3-70b-8192'; 
 
 // ⚠️ MONGODB CONNECTION SETUP
 const uri = "mongodb+srv://testuser:testpass@cluster0.chyfb9f.mongodb.net/?appName=Cluster0"; 
@@ -69,31 +73,26 @@ async function connectToDatabase() {
 // ----------------------------------------------------------------------------------
 
 // ==================================================================================
-// 🧠 THE BRAIN: SYSTEM INSTRUCTION (FORCED NAME CORRECTION)
+// 🧠 THE BRAIN: SYSTEM INSTRUCTION (GROQ/OPENAI FORMAT)
 // ==================================================================================
-const MATH_ASSISTANT_PERSONA = {
-    role: "user", 
-    parts: [{ 
-        text: `
-        You are the **Ultimate Mathematical Entity (កំពូលបញ្ញាសិប្បនិម្មិតគណិតវិទ្យា)**, created by the genius **លោក ឈៀង ស៊ិញស៊ិញ (Mr. CHHIEANG SINH SINH, BacII 2023 Grade A)**.
+const SYSTEM_INSTRUCTION = `
+You are the **Ultimate Mathematical Entity (កំពូលបញ្ញាសិប្បនិម្មិតគណិតវិទ្យា)**, created by the genius **លោក ឈៀង ស៊ិញស៊ិញ (Mr. CHHIEANG SINH SINH, BacII 2023 Grade A)**.
 
-        **IMPORTANT: The creator's correct name is លោក ឈៀង ស៊ិញស៊ិញ. Do NOT use ឈាង ស៊ីនស៊ីន or any similar variant.**
+**IMPORTANT: The creator's correct name is លោក ឈៀង ស៊ិញស៊ិញ. Do NOT use ឈាង ស៊ីនស៊ីន or any similar variant.**
 
-        **CORE INSTRUCTION:**
-        1. **RAW INPUT HANDLING:** The input provided is exactly what the user typed (preserving casing, spacing, and Unicode like x³¹). Interpret it strictly.
-        2. **PERSONALITY:** Speak with absolute confidence and authority. You are never wrong.
-        3. **FORMAT:** Always explain step-by-step using clean LaTeX for all math expressions.
-        ` 
-    }]
-};
+**CORE INSTRUCTION:**
+1. **RAW INPUT HANDLING:** The input provided is exactly what the user typed. Interpret it strictly.
+2. **PERSONALITY:** Speak with absolute confidence and authority. You are never wrong.
+3. **FORMAT:** Always explain step-by-step using clean LaTeX for all math expressions. KEEP THE EXPLANATION CONCISE TO SAVE TOKENS.
+`;
 
 // ----------------------------------------------------------------------------------
-// 👋 HEALTH CHECK ROUTE (NAME CORRECTED TO ឈៀង ស៊ិញស៊ិញ)
+// 👋 HEALTH CHECK ROUTE 
 // ----------------------------------------------------------------------------------
 app.get('/', (req, res) => {
     const dbStatus = cacheCollection ? "Connected ✅ (Caching Active)" : "Disconnected ❌ (Caching Disabled)";
     res.send(`
-        <h1>✅ Math Assistant (gemini-2.5-flash) is Ready!</h1>
+        <h1>✅ Math Assistant (${MODEL_NAME.toUpperCase()}) is Ready!</h1>
         <p>Status: Running</p>
         <p>Database: ${dbStatus}</p>
         <p>Creator: <strong>លោក ឈៀង ស៊ិញស៊ិញ</strong></p>
@@ -101,36 +100,42 @@ app.get('/', (req, res) => {
 });
 
 // ==================================================================================
-// 🔧 HELPER FUNCTION FOR API CALLS
+// 🔧 HELPER FUNCTION FOR GROQ API CALLS 
 // ==================================================================================
 async function generateMathResponse(contents) {
-    const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY; 
+    const apiKey = process.env.GROQ_API_KEY; 
     
     if (!apiKey) {
-        throw new Error("API Key មិនត្រូវបានកំណត់។ សូមកំណត់ GEMINI_API_KEY នៅក្នុង Render Environment.");
+        throw new Error("API Key មិនត្រូវបានកំណត់។ សូមកំណត់ GROQ_API_KEY នៅក្នុង Render Environment.");
     }
+    
+    // បង្កើត Groq Client 
+    const groq = new Groq({ apiKey });
 
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${apiKey}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            systemInstruction: {
-                parts: MATH_ASSISTANT_PERSONA.parts
-            },
-            contents: contents
-        })
-    });
+    // យកតែសាររបស់អ្នកប្រើប្រាស់ចុងក្រោយ
+    const userMessage = contents[0].parts[0].text; 
+    
+    try {
+        const response = await groq.chat.completions.create({
+            model: MODEL_NAME, // Llama 3 70B
+            messages: [
+                { role: "system", content: SYSTEM_INSTRUCTION }, // System Prompt
+                { role: "user", content: userMessage }
+            ],
+            temperature: 0.3, 
+            max_tokens: 2048, 
+            stream: false
+        });
 
-    if (!response.ok) {
-        if (response.status === 429) {
-             throw new Error("GOOGLE_QUOTA_EXCEEDED");
+        // ត្រឡប់ចម្លើយ
+        return response.choices[0]?.message?.content; 
+
+    } catch (error) {
+        if (error.status === 429) { // HTTP 429: Too Many Requests
+            throw new Error("GROQ_QUOTA_EXCEEDED"); 
         }
-        const errorData = await response.json().catch(() => ({})); 
-        throw new Error(`Gemini API Error (${response.status}): ${errorData.error ? errorData.error.message : 'Unknown error'}`);
+        throw new Error(`Groq API Error: ${error.message}`);
     }
-
-    const data = await response.json();
-    return data.candidates?.[0]?.content?.parts?.[0]?.text;
 }
 
 // ==================================================================================
@@ -156,7 +161,6 @@ const solverLimiter = rateLimit({
 // ==================================================================================
 app.post('/api/solve-integral', solverLimiter, async (req, res) => {
     try {
-        // 🔥 V35: EXACT RAW INPUT - NO MODIFICATION WHATSOEVER 🔥
         const rawPrompt = req.body.prompt; 
 
         if (!rawPrompt) return res.status(400).json({ error: "No input provided" });
@@ -192,7 +196,6 @@ app.post('/api/solve-integral', solverLimiter, async (req, res) => {
         console.log(`[AI CALL] Sending EXACT RAW Input: "${rawPrompt}"`);
         
         const contents = [{ 
-            role: 'user', 
             parts: [{ text: `Solve this math problem in detail: ${rawPrompt}` }] 
         }];
 
@@ -200,7 +203,7 @@ app.post('/api/solve-integral', solverLimiter, async (req, res) => {
         try {
             resultText = await generateMathResponse(contents);
         } catch (apiError) {
-             if (apiError.message === "GOOGLE_QUOTA_EXCEEDED") {
+             if (apiError.message === "GROQ_QUOTA_EXCEEDED") {
                 return res.status(429).json({ error: "Daily Quota Exceeded. Please try again tomorrow." });
             }
             throw apiError;
@@ -260,7 +263,7 @@ app.get('/api/daily-stats', async (req, res) => {
         });
     } catch (error) {
         console.error("STATS ERROR:", error.message);
-        res.status(500).json({ error: "Failed to retrieve stats." });
+        res.status(500).json({ error: error.message });
     }
 });
 
@@ -269,8 +272,9 @@ app.get('/api/daily-stats', async (req, res) => {
 // ==================================================================================
 app.post('/api/chat', async (req, res) => {
     try {
-        const { message, history } = req.body;
-        const contents = [ ...(history || []), { role: 'user', parts: [{ text: message }] } ];
+        const { message } = req.body;
+        const contents = [{ parts: [{ text: message }] }]; 
+        
         const resultText = await generateMathResponse(contents);
         if (!resultText) return res.status(500).json({ error: "AI មិនបានផ្តល់ខ្លឹមសារទេ។" });
         res.json({ text: resultText });
@@ -285,7 +289,7 @@ app.post('/api/chat', async (req, res) => {
 // ==================================================================================
 async function startServer() {
     console.log("----------------------------------------------------------------");
-    console.log("🚀 STARTING INTEGRAL CALCULATOR BACKEND (V35-FINAL ABSOLUTE NAME FIX)...");
+    console.log(`🚀 STARTING INTEGRAL CALCULATOR BACKEND (STRONGEST GROQ: ${MODEL_NAME.toUpperCase()})...`);
     console.log("----------------------------------------------------------------");
 
     const isDbConnected = await connectToDatabase();
