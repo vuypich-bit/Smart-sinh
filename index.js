@@ -2,7 +2,7 @@
 // 🚀 INTEGRAL CALCULATOR AI - BACKEND SERVER (V35 - FINAL ABSOLUTE NAME FIX)
 // ==================================================================================
 // Developed by: លោក ឈៀង ស៊ិញស៊ិញ (BacII 2023 Grade A)
-// Powered by: Cohere Command A & MongoDB Atlas <--- (UPDATED)
+// Powered by: Cohere Command A & MongoDB Atlas 
 // ==================================================================================
 
 const express = require('express');
@@ -15,7 +15,7 @@ const rateLimit = require('express-rate-limit');
 // 2. IMPORT MONGODB DRIVER 
 const { MongoClient } = require('mongodb');
 
-// ⭐ 3. IMPORT COHERE SDK (NEW) ⭐
+// ⭐ IMPORT COHERE SDK ⭐
 const cohere = require('cohere-ai');
 
 // Load environment variables
@@ -41,7 +41,7 @@ app.use(cors({
 app.use(express.json());
 
 // --- Configuration ---
-const MODEL_NAME = 'command-a'; // ⭐⭐⭐ UPDATED: ប្រើ Command A ⭐⭐⭐
+const MODEL_NAME = 'command-a'; 
 
 // ⚠️ MONGODB CONNECTION SETUP
 const uri = "mongodb+srv://testuser:testpass@cluster0.chyfb9f.mongodb.net/?appName=Cluster0"; 
@@ -72,9 +72,8 @@ async function connectToDatabase() {
 // ----------------------------------------------------------------------------------
 
 // ==================================================================================
-// 🧠 THE BRAIN: SYSTEM INSTRUCTION (ADAPTED FOR COHERE PREAMBLE)
+// 🧠 THE BRAIN: SYSTEM INSTRUCTION (COHERE PREAMBLE)
 // ==================================================================================
-// Cohere ប្រើ 'preamble' ជា String ជំនួស object របស់ Gemini
 const MATH_ASSISTANT_PREAMBLE = `
 You are the **Ultimate Mathematical Entity (កំពូលបញ្ញាសិប្បនិម្មិតគណិតវិទ្យា)**, created by the genius **លោក ឈៀង ស៊ិញស៊ិញ (Mr. CHHIEANG SINH SINH, BacII 2023 Grade A)**.
 
@@ -87,11 +86,10 @@ You are the **Ultimate Mathematical Entity (កំពូលបញ្ញាសិ
 `;
 
 // ----------------------------------------------------------------------------------
-// 👋 HEALTH CHECK ROUTE (UPDATED NAME)
+// 👋 HEALTH CHECK ROUTE 
 // ----------------------------------------------------------------------------------
 app.get('/', (req, res) => {
     const dbStatus = cacheCollection ? "Connected ✅ (Caching Active)" : "Disconnected ❌ (Caching Disabled)";
-    // ⭐⭐⭐ UPDATED: បង្ហាញ Command A ⭐⭐⭐
     res.send(`
         <h1>✅ Math Assistant (${MODEL_NAME}) is Ready!</h1>
         <p>Status: Running</p>
@@ -101,7 +99,7 @@ app.get('/', (req, res) => {
 });
 
 // ==================================================================================
-// 🔧 HELPER FUNCTION FOR COHERE API CALLS (REPLACED GOOGLE API LOGIC)
+// 🔧 HELPER FUNCTION FOR COHERE API CALLS 
 // ==================================================================================
 async function generateMathResponse(contents) {
     const apiKey = process.env.COHERE_API_KEY; 
@@ -110,22 +108,19 @@ async function generateMathResponse(contents) {
         throw new Error("API Key មិនត្រូវបានកំណត់។ សូមកំណត់ COHERE_API_KEY នៅក្នុង Render Environment.");
     }
     
-    // ⭐ Initialize Cohere Client (Client ត្រូវ init ជាមួយ Key) ⭐
     cohere.init(apiKey);
 
-    // យកសារចុងក្រោយរបស់អ្នកប្រើប្រាស់
     const userMessage = contents[contents.length - 1].parts[0].text;
     
     try {
         const response = await cohere.chat({
-            model: MODEL_NAME, // ប្រើ Command A 
+            model: MODEL_NAME, 
             message: userMessage, 
             preamble: MATH_ASSISTANT_PREAMBLE, 
             temperature: 0.3, 
             max_tokens: 2048 
         });
 
-        // Cohere ឆ្លើយតបជាមួយ response.text
         return response.text; 
 
     } catch (error) {
@@ -159,7 +154,6 @@ const solverLimiter = rateLimit({
 // ==================================================================================
 app.post('/api/solve-integral', solverLimiter, async (req, res) => {
     try {
-        // 🔥 V35: EXACT RAW INPUT - NO MODIFICATION WHATSOEVER 🔥
         const rawPrompt = req.body.prompt; 
 
         if (!rawPrompt) return res.status(400).json({ error: "No input provided" });
@@ -288,7 +282,6 @@ app.post('/api/chat', async (req, res) => {
 // ==================================================================================
 async function startServer() {
     console.log("----------------------------------------------------------------");
-    // ⭐⭐⭐ UPDATED: បង្ហាញ Command A ⭐⭐⭐
     console.log(`🚀 STARTING INTEGRAL CALCULATOR BACKEND (COHERE ${MODEL_NAME.toUpperCase()})...`);
     console.log("----------------------------------------------------------------");
 
