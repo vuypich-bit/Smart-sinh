@@ -2,7 +2,7 @@
 // 🚀 INTEGRAL CALCULATOR AI - BACKEND SERVER (V35 - FINAL ABSOLUTE NAME FIX)
 // ==================================================================================
 // Developed by: លោក ឈៀង ស៊ិញស៊ិញ (BacII 2023 Grade A)
-// Powered by: Cohere Command A & MongoDB Atlas 
+// Powered by: Cohere Command R+ & MongoDB Atlas 
 // ==================================================================================
 
 const express = require('express');
@@ -15,7 +15,7 @@ const rateLimit = require('express-rate-limit');
 // 2. IMPORT MONGODB DRIVER 
 const { MongoClient } = require('mongodb');
 
-// ⭐ IMPORT COHERE CLIENT (UPDATED FOR SDK V7+) ⭐
+// ⭐ IMPORT COHERE CLIENT ⭐
 const { CohereClient } = require('cohere-ai');
 
 // Load environment variables
@@ -41,7 +41,7 @@ app.use(cors({
 app.use(express.json());
 
 // --- Configuration ---
-const MODEL_NAME = 'command-a'; 
+const MODEL_NAME = 'command-r-plus'; // ⭐⭐ កែសម្រួលទៅ Command R+ ⭐⭐
 
 // ⚠️ MONGODB CONNECTION SETUP
 const uri = "mongodb+srv://testuser:testpass@cluster0.chyfb9f.mongodb.net/?appName=Cluster0"; 
@@ -108,19 +108,19 @@ async function generateMathResponse(contents) {
         throw new Error("API Key មិនត្រូវបានកំណត់។ សូមកំណត់ COHERE_API_KEY នៅក្នុង Render Environment.");
     }
     
-    // ⭐ បង្កើត Client Instance ថ្មីជំនួស cohere.init() ⭐
+    // បង្កើត Client Instance ថ្មី
     const client = new CohereClient({ token: apiKey });
 
     const userMessage = contents[contents.length - 1].parts[0].text;
     
     try {
-        // ⭐ ហៅ API តាមរយៈ client ⭐
+        // ហៅ API តាមរយៈ client
         const response = await client.chat({
-            model: MODEL_NAME, 
+            model: MODEL_NAME, // ប្រើ Command R+
             message: userMessage, 
             preamble: MATH_ASSISTANT_PREAMBLE, 
             temperature: 0.3, 
-            maxTokens: 2048 // ប្រើ maxTokens ជំនួស max_tokens សម្រាប់ SDK ថ្មី
+            maxTokens: 2048 
         });
 
         return response.text; 
@@ -129,6 +129,7 @@ async function generateMathResponse(contents) {
         if (error.statusCode === 429) { 
             throw new Error("COHERE_QUOTA_EXCEEDED"); 
         }
+        // បើមានកំហុស Cohere API ផ្សេងទៀត (ដូចជា 404)
         throw new Error(`Cohere API Error: ${error.message}`);
     }
 }
