@@ -1,8 +1,8 @@
 // ==================================================================================
-// 🚀 INTEGRAL CALCULATOR AI - BACKEND SERVER (V40 - GPT-4 TURBO EDITION)
+// 🚀 INTEGRAL CALCULATOR AI - BACKEND SERVER (V35 - FINAL ABSOLUTE NAME FIX)
 // ==================================================================================
 // Developed by: លោក ឈៀង ស៊ិញស៊ិញ (BacII 2023 Grade A)
-// Powered by: OpenAI GPT-4 Turbo & MongoDB Atlas
+// Powered by: Google Gemini 2.5 Flash & MongoDB Atlas
 // ==================================================================================
 
 const express = require('express');
@@ -38,8 +38,7 @@ app.use(cors({
 app.use(express.json());
 
 // --- Configuration ---
-// ✅ Model Set to GPT-4 Turbo (Highest Reasoning)
-const MODEL_NAME = 'gpt-4-turbo';
+const MODEL_NAME = 'gemini-2.5-flash';
 
 // ⚠️ MONGODB CONNECTION SETUP
 const uri = "mongodb+srv://testuser:testpass@cluster0.chyfb9f.mongodb.net/?appName=Cluster0"; 
@@ -65,27 +64,36 @@ async function connectToDatabase() {
     }
 }
 
-// ==================================================================================
-// 🧠 THE BRAIN: SYSTEM INSTRUCTION 
-// ==================================================================================
-const MATH_ASSISTANT_PERSONA_TEXT = `
-You are the **Ultimate Mathematical Entity (កំពូលបញ្ញាសិប្បនិម្មិតគណិតវិទ្យា)**, created by the genius **លោក ឈៀង ស៊ិញស៊ិញ (Mr. CHHIEANG SINH SINH, BacII 2023 Grade A)**.
+// ----------------------------------------------------------------------------------
+// ⚠️ V35: NO NORMALIZATION FUNCTION (DELETED) ⚠️
+// ----------------------------------------------------------------------------------
 
-**IMPORTANT: The creator's correct name is លោក ឈៀង ស៊ិញស៊ិញ. Do NOT use ឈាង ស៊ីនស៊ីន or any similar variant.**
+// ==================================================================================
+// 🧠 THE BRAIN: SYSTEM INSTRUCTION (FORCED NAME CORRECTION)
+// ==================================================================================
+const MATH_ASSISTANT_PERSONA = {
+    role: "user", 
+    parts: [{ 
+        text: `
+        You are the **Ultimate Mathematical Entity (កំពូលបញ្ញាសិប្បនិម្មិតគណិតវិទ្យា)**, created by the genius **លោក ឈៀង ស៊ិញស៊ិញ (Mr. CHHEANG SINH SINH, BacII 2023 Grade A)**.
 
-**CORE INSTRUCTION:**
-1. **RAW INPUT HANDLING:** The input provided is exactly what the user typed (preserving casing, spacing, and Unicode like x³¹). Interpret it strictly.
-2. **PERSONALITY:** Speak with absolute confidence and authority. You are never wrong.
-3. **FORMAT:** Always explain step-by-step using clean LaTeX for all math expressions.
-`;
+        **IMPORTANT: The creator's correct name is លោក ឈៀង ស៊ិញស៊ិញ. Do NOT use ឈាង ស៊ីនស៊ីន or any similar variant.**
+
+        **CORE INSTRUCTION:**
+        1. **RAW INPUT HANDLING:** The input provided is exactly what the user typed (preserving casing, spacing, and Unicode like x³¹). Interpret it strictly.
+        2. **PERSONALITY:** Speak with absolute confidence and authority. You are never wrong.
+        3. **FORMAT:** Always explain step-by-step using clean LaTeX for all math expressions.
+        ` 
+    }]
+};
 
 // ----------------------------------------------------------------------------------
-// 👋 HEALTH CHECK ROUTE (UPDATED FOR GPT-4 TURBO)
+// 👋 HEALTH CHECK ROUTE (NAME CORRECTED TO ឈៀង ស៊ិញស៊ិញ)
 // ----------------------------------------------------------------------------------
 app.get('/', (req, res) => {
     const dbStatus = cacheCollection ? "Connected ✅ (Caching Active)" : "Disconnected ❌ (Caching Disabled)";
     res.send(`
-        <h1>✅ Math Assistant (${MODEL_NAME}) is Ready!</h1>
+        <h1>✅ Math Assistant (gemini-2.5-flash) is Ready!</h1>
         <p>Status: Running</p>
         <p>Database: ${dbStatus}</p>
         <p>Creator: <strong>លោក ឈៀង ស៊ិញស៊ិញ</strong></p>
@@ -93,72 +101,36 @@ app.get('/', (req, res) => {
 });
 
 // ==================================================================================
-// 🔧 HELPER FUNCTION FOR API CALLS (ROBUST OPENAI VERSION)
+// 🔧 HELPER FUNCTION FOR API CALLS
 // ==================================================================================
-async function generateMathResponse(geminiStyleContents) {
-    // 1. Get API Key
-    const apiKey = process.env.OPENAI_API_KEY; 
+async function generateMathResponse(contents) {
+    const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY; 
     
     if (!apiKey) {
-        throw new Error("API Key មិនត្រូវបានកំណត់។ សូមកំណត់ OPENAI_API_KEY");
+        throw new Error("API Key មិនត្រូវបានកំណត់។ សូមកំណត់ GEMINI_API_KEY នៅក្នុង Render Environment.");
     }
 
-    // 2. Convert Gemini-style contents into OpenAI 'messages' array
-    const messages = [];
-
-    // Add System Instruction as the first message
-    messages.push({
-        role: "system",
-        content: MATH_ASSISTANT_PERSONA_TEXT
-    });
-
-    // Convert history
-    geminiStyleContents.forEach(msg => {
-        const role = (msg.role === 'model') ? 'assistant' : 'user';
-        const text = msg.parts && msg.parts[0] ? msg.parts[0].text : "";
-        if (text) {
-            messages.push({ role: role, content: text });
-        }
-    });
-
-    // 3. Call OpenAI API Endpoint
-    const response = await fetch(`https://api.openai.com/v1/chat/completions`, {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${apiKey}`, {
         method: 'POST',
-        headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}` // Authentication
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-            model: MODEL_NAME, // 'gpt-4-turbo'
-            messages: messages,
-            temperature: 0.7,
-            max_tokens: 1500
+            systemInstruction: {
+                parts: MATH_ASSISTANT_PERSONA.parts
+            },
+            contents: contents
         })
     });
 
     if (!response.ok) {
-        // 🚨 ROBUST ERROR HANDLING TO PREVENT CRASHES AND DISPLAY CLEAR MESSAGES
-        const status = response.status;
-        
-        if (status === 401) {
-            throw new Error(`OpenAI API Error (401 Unauthorized): Please check your OPENAI_API_KEY value.`);
+        if (response.status === 429) {
+             throw new Error("GOOGLE_QUOTA_EXCEEDED");
         }
-        if (status === 400) {
-            // Bad request, often due to invalid prompt structure or model limits
-            const errorText = await response.text(); 
-            throw new Error(`OpenAI API Error (400 Bad Request): Check data structure. Response: ${errorText}`);
-        }
-        if (status === 429) {
-             throw new Error("OPENAI_QUOTA_EXCEEDED. (Check credit balance/Daily limit)");
-        }
-        
-        throw new Error(`OpenAI Server Error: Status ${status} (Likely Billing or Server issue).`);
+        const errorData = await response.json().catch(() => ({})); 
+        throw new Error(`Gemini API Error (${response.status}): ${errorData.error ? errorData.error.message : 'Unknown error'}`);
     }
 
     const data = await response.json();
-    
-    // 4. Extract content from OpenAI response structure
-    return data.choices?.[0]?.message?.content;
+    return data.candidates?.[0]?.content?.parts?.[0]?.text;
 }
 
 // ==================================================================================
@@ -184,6 +156,7 @@ const solverLimiter = rateLimit({
 // ==================================================================================
 app.post('/api/solve-integral', solverLimiter, async (req, res) => {
     try {
+        // 🔥 V35: EXACT RAW INPUT - NO MODIFICATION WHATSOEVER 🔥
         const rawPrompt = req.body.prompt; 
 
         if (!rawPrompt) return res.status(400).json({ error: "No input provided" });
@@ -199,7 +172,7 @@ app.post('/api/solve-integral', solverLimiter, async (req, res) => {
             ).catch(err => console.error("Tracking Error:", err.message));
         }
 
-        // --- CACHE READ START ---
+        // --- CACHE READ START (Uses raw, case-sensitive input) ---
         const cacheKey = Buffer.from(rawPrompt).toString('base64');
         
         if (cacheCollection) {
@@ -227,8 +200,10 @@ app.post('/api/solve-integral', solverLimiter, async (req, res) => {
         try {
             resultText = await generateMathResponse(contents);
         } catch (apiError) {
-             // Return the specific error message from the helper function
-            return res.status(500).json({ error: apiError.message });
+             if (apiError.message === "GOOGLE_QUOTA_EXCEEDED") {
+                return res.status(429).json({ error: "Daily Quota Exceeded. Please try again tomorrow." });
+            }
+            throw apiError;
         }
 
         if (!resultText) return res.status(500).json({ error: "AI មិនបានផ្តល់ខ្លឹមសារទេ។" });
@@ -285,7 +260,7 @@ app.get('/api/daily-stats', async (req, res) => {
         });
     } catch (error) {
         console.error("STATS ERROR:", error.message);
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: "Failed to retrieve stats." });
     }
 });
 
@@ -296,9 +271,7 @@ app.post('/api/chat', async (req, res) => {
     try {
         const { message, history } = req.body;
         const contents = [ ...(history || []), { role: 'user', parts: [{ text: message }] } ];
-        
         const resultText = await generateMathResponse(contents);
-        
         if (!resultText) return res.status(500).json({ error: "AI មិនបានផ្តល់ខ្លឹមសារទេ។" });
         res.json({ text: resultText });
     } catch (error) {
@@ -312,7 +285,7 @@ app.post('/api/chat', async (req, res) => {
 // ==================================================================================
 async function startServer() {
     console.log("----------------------------------------------------------------");
-    console.log(`🚀 STARTING INTEGRAL CALCULATOR BACKEND (V40 - ${MODEL_NAME})...`);
+    console.log("🚀 STARTING INTEGRAL CALCULATOR BACKEND (V35-FINAL ABSOLUTE NAME FIX)...");
     console.log("----------------------------------------------------------------");
 
     const isDbConnected = await connectToDatabase();
