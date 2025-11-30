@@ -1,13 +1,13 @@
 {
   "name": "math-backend-server",
   "version": "1.0.0",
-  "description": "Secure Backend for Integral Calculator",
+  "description": "Secure Backend for Integral Calculator using Cohere Command A",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
   },
   "dependencies": {
-    "cohere-ai": "^7.10.0",  <-- ⭐ បន្ថែមបន្ទាត់នេះ ⭐
+    "cohere-ai": "^7.10.0", 
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
