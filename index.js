@@ -2,7 +2,7 @@
 // 🚀 INTEGRAL CALCULATOR AI - BACKEND SERVER (FINAL SOLUTION: GROQ LLAMA 3 70B)
 // ==================================================================================
 // Developed by: លោក ឈៀង ស៊ិញស៊ិញ (BacII 2023 Grade A)
-// Powered by: Groq (llama3-70b-8192) & MongoDB Atlas 
+// Powered by: Groq (mixtral-8x7b-32768) & MongoDB Atlas 
 // ==================================================================================
 
 const express = require('express');
@@ -42,7 +42,7 @@ app.use(express.json());
 
 // --- Configuration ---
 // ⭐⭐ UPDATED: ប្រើ Llama 3 70B ដែលខ្លាំងជាងគេ ⭐⭐
-const MODEL_NAME = 'llama3-70b-8192'; 
+const MODEL_NAME = 'mixtral-8x7b-32768'; 
 
 // ⚠️ MONGODB CONNECTION SETUP
 const uri = "mongodb+srv://testuser:testpass@cluster0.chyfb9f.mongodb.net/?appName=Cluster0"; 
