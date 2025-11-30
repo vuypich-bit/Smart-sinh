@@ -2,7 +2,7 @@
 // 🚀 INTEGRAL CALCULATOR AI - BACKEND SERVER (V35 - FINAL ABSOLUTE NAME FIX)
 // ==================================================================================
 // Developed by: លោក ឈៀង ស៊ិញស៊ិញ (BacII 2023 Grade A)
-// Powered by: Google Gemini 2.5 Flash & MongoDB Atlas
+// Powered by: Cohere Command R+ & MongoDB Atlas <--- (UPDATED)
 // ==================================================================================
 
 const express = require('express');
@@ -14,6 +14,9 @@ const rateLimit = require('express-rate-limit');
 
 // 2. IMPORT MONGODB DRIVER 
 const { MongoClient } = require('mongodb');
+
+// ⭐ 3. IMPORT COHERE SDK (NEW) ⭐
+const cohere = require('cohere-ai');
 
 // Load environment variables
 dotenv.config();
@@ -38,7 +41,7 @@ app.use(cors({
 app.use(express.json());
 
 // --- Configuration ---
-const MODEL_NAME = 'gemini-2.5-flash';
+const MODEL_NAME = 'command-r-plus'; // ⭐ ម៉ូដែល Cohere ⭐
 
 // ⚠️ MONGODB CONNECTION SETUP
 const uri = "mongodb+srv://testuser:testpass@cluster0.chyfb9f.mongodb.net/?appName=Cluster0"; 
@@ -69,31 +72,27 @@ async function connectToDatabase() {
 // ----------------------------------------------------------------------------------
 
 // ==================================================================================
-// 🧠 THE BRAIN: SYSTEM INSTRUCTION (FORCED NAME CORRECTION)
+// 🧠 THE BRAIN: SYSTEM INSTRUCTION (ADAPTED FOR COHERE PREAMBLE)
 // ==================================================================================
-const MATH_ASSISTANT_PERSONA = {
-    role: "user", 
-    parts: [{ 
-        text: `
-        You are the **Ultimate Mathematical Entity (កំពូលបញ្ញាសិប្បនិម្មិតគណិតវិទ្យា)**, created by the genius **លោក ឈៀង ស៊ិញស៊ិញ (Mr. CHHEANG SINH SINH, BacII 2023 Grade A)**.
+// Cohere ប្រើ 'preamble' ជា String ជំនួស object របស់ Gemini
+const MATH_ASSISTANT_PREAMBLE = `
+You are the **Ultimate Mathematical Entity (កំពូលបញ្ញាសិប្បនិម្មិតគណិតវិទ្យា)**, created by the genius **លោក ឈៀង ស៊ិញស៊ិញ (Mr. CHHIEANG SINH SINH, BacII 2023 Grade A)**.
 
-        **IMPORTANT: The creator's correct name is លោក ឈៀង ស៊ិញស៊ិញ. Do NOT use ឈាង ស៊ីនស៊ីន or any similar variant.**
+**IMPORTANT: The creator's correct name is លោក ឈៀង ស៊ិញស៊ិញ. Do NOT use ឈាង ស៊ីនស៊ីន or any similar variant.**
 
-        **CORE INSTRUCTION:**
-        1. **RAW INPUT HANDLING:** The input provided is exactly what the user typed (preserving casing, spacing, and Unicode like x³¹). Interpret it strictly.
-        2. **PERSONALITY:** Speak with absolute confidence and authority. You are never wrong.
-        3. **FORMAT:** Always explain step-by-step using clean LaTeX for all math expressions.
-        ` 
-    }]
-};
+**CORE INSTRUCTION:**
+1. **RAW INPUT HANDLING:** The input provided is exactly what the user typed (preserving casing, spacing, and Unicode like x³¹). Interpret it strictly.
+2. **PERSONALITY:** Speak with absolute confidence and authority. You are never wrong.
+3. **FORMAT:** Always explain step-by-step using clean LaTeX for all math expressions.
+`;
 
 // ----------------------------------------------------------------------------------
-// 👋 HEALTH CHECK ROUTE (NAME CORRECTED TO ឈៀង ស៊ិញស៊ិញ)
+// 👋 HEALTH CHECK ROUTE (UPDATED NAME)
 // ----------------------------------------------------------------------------------
 app.get('/', (req, res) => {
     const dbStatus = cacheCollection ? "Connected ✅ (Caching Active)" : "Disconnected ❌ (Caching Disabled)";
     res.send(`
-        <h1>✅ Math Assistant (gemini-2.5-flash) is Ready!</h1>
+        <h1>✅ Math Assistant (${MODEL_NAME}) is Ready!</h1>
         <p>Status: Running</p>
         <p>Database: ${dbStatus}</p>
         <p>Creator: <strong>លោក ឈៀង ស៊ិញស៊ិញ</strong></p>
@@ -101,36 +100,40 @@ app.get('/', (req, res) => {
 });
 
 // ==================================================================================
-// 🔧 HELPER FUNCTION FOR API CALLS
+// 🔧 HELPER FUNCTION FOR COHERE API CALLS (REPLACED GOOGLE API LOGIC)
 // ==================================================================================
 async function generateMathResponse(contents) {
-    const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY; 
+    const apiKey = process.env.COHERE_API_KEY; // ⭐ ប្រើ COHERE_API_KEY ⭐
     
     if (!apiKey) {
-        throw new Error("API Key មិនត្រូវបានកំណត់។ សូមកំណត់ GEMINI_API_KEY នៅក្នុង Render Environment.");
+        throw new Error("API Key មិនត្រូវបានកំណត់។ សូមកំណត់ COHERE_API_KEY នៅក្នុង Render Environment.");
     }
+    
+    // ⭐ Initialize Cohere Client (Client ត្រូវ init ជាមួយ Key) ⭐
+    cohere.init(apiKey);
 
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${apiKey}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            systemInstruction: {
-                parts: MATH_ASSISTANT_PERSONA.parts
-            },
-            contents: contents
-        })
-    });
+    // យកសារចុងក្រោយរបស់អ្នកប្រើប្រាស់
+    const userMessage = contents[contents.length - 1].parts[0].text;
+    
+    try {
+        const response = await cohere.chat({
+            model: MODEL_NAME,
+            message: userMessage, 
+            preamble: MATH_ASSISTANT_PREAMBLE, // ប្រើ Preamble ជំនួស System Instruction
+            temperature: 0.3, // កំណត់សីតុណ្ហភាពទាបសម្រាប់ការគណនា
+            max_tokens: 2048 // កំណត់ Max Tokens សម្រាប់ការបកស្រាយ
+            // history មិនត្រូវបានប្រើនៅទីនេះសម្រាប់ភាពសាមញ្ញ
+        });
 
-    if (!response.ok) {
-        if (response.status === 429) {
-             throw new Error("GOOGLE_QUOTA_EXCEEDED");
+        // Cohere ឆ្លើយតបជាមួយ response.text
+        return response.text; 
+
+    } catch (error) {
+        if (error.statusCode === 429) { // HTTP 429: Too Many Requests
+            throw new Error("COHERE_QUOTA_EXCEEDED"); // ⭐ កែ Quota Error ⭐
         }
-        const errorData = await response.json().catch(() => ({})); 
-        throw new Error(`Gemini API Error (${response.status}): ${errorData.error ? errorData.error.message : 'Unknown error'}`);
+        throw new Error(`Cohere API Error: ${error.message}`);
     }
-
-    const data = await response.json();
-    return data.candidates?.[0]?.content?.parts?.[0]?.text;
 }
 
 // ==================================================================================
@@ -200,7 +203,7 @@ app.post('/api/solve-integral', solverLimiter, async (req, res) => {
         try {
             resultText = await generateMathResponse(contents);
         } catch (apiError) {
-             if (apiError.message === "GOOGLE_QUOTA_EXCEEDED") {
+             if (apiError.message === "COHERE_QUOTA_EXCEEDED") { // ⭐ ប្រើ Cohere Quota Error ⭐
                 return res.status(429).json({ error: "Daily Quota Exceeded. Please try again tomorrow." });
             }
             throw apiError;
@@ -270,7 +273,8 @@ app.get('/api/daily-stats', async (req, res) => {
 app.post('/api/chat', async (req, res) => {
     try {
         const { message, history } = req.body;
-        const contents = [ ...(history || []), { role: 'user', parts: [{ text: message }] } ];
+        // សម្រាប់ភាពសាមញ្ញនៃ Chat Call យើងប្រើតែ message បច្ចុប្បន្នប៉ុណ្ណោះ
+        const contents = [{ role: 'user', parts: [{ text: message }] }]; 
         const resultText = await generateMathResponse(contents);
         if (!resultText) return res.status(500).json({ error: "AI មិនបានផ្តល់ខ្លឹមសារទេ។" });
         res.json({ text: resultText });
@@ -285,7 +289,7 @@ app.post('/api/chat', async (req, res) => {
 // ==================================================================================
 async function startServer() {
     console.log("----------------------------------------------------------------");
-    console.log("🚀 STARTING INTEGRAL CALCULATOR BACKEND (V35-FINAL ABSOLUTE NAME FIX)...");
+    console.log("🚀 STARTING INTEGRAL CALCULATOR BACKEND (COHERE COMMAND R+)...");
     console.log("----------------------------------------------------------------");
 
     const isDbConnected = await connectToDatabase();
