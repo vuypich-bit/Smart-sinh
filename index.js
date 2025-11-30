@@ -2,7 +2,7 @@
 // 🚀 INTEGRAL CALCULATOR AI - BACKEND SERVER (V35 - FINAL ABSOLUTE NAME FIX)
 // ==================================================================================
 // Developed by: លោក ឈៀង ស៊ិញស៊ិញ (BacII 2023 Grade A)
-// Powered by: Cohere Command R+ & MongoDB Atlas <--- (UPDATED)
+// Powered by: Cohere Command A & MongoDB Atlas <--- (UPDATED)
 // ==================================================================================
 
 const express = require('express');
@@ -41,7 +41,7 @@ app.use(cors({
 app.use(express.json());
 
 // --- Configuration ---
-const MODEL_NAME = 'command-r-plus'; // ⭐ ម៉ូដែល Cohere ⭐
+const MODEL_NAME = 'command-a'; // ⭐⭐⭐ UPDATED: ប្រើ Command A ⭐⭐⭐
 
 // ⚠️ MONGODB CONNECTION SETUP
 const uri = "mongodb+srv://testuser:testpass@cluster0.chyfb9f.mongodb.net/?appName=Cluster0"; 
@@ -91,6 +91,7 @@ You are the **Ultimate Mathematical Entity (កំពូលបញ្ញាសិ
 // ----------------------------------------------------------------------------------
 app.get('/', (req, res) => {
     const dbStatus = cacheCollection ? "Connected ✅ (Caching Active)" : "Disconnected ❌ (Caching Disabled)";
+    // ⭐⭐⭐ UPDATED: បង្ហាញ Command A ⭐⭐⭐
     res.send(`
         <h1>✅ Math Assistant (${MODEL_NAME}) is Ready!</h1>
         <p>Status: Running</p>
@@ -103,7 +104,7 @@ app.get('/', (req, res) => {
 // 🔧 HELPER FUNCTION FOR COHERE API CALLS (REPLACED GOOGLE API LOGIC)
 // ==================================================================================
 async function generateMathResponse(contents) {
-    const apiKey = process.env.COHERE_API_KEY; // ⭐ ប្រើ COHERE_API_KEY ⭐
+    const apiKey = process.env.COHERE_API_KEY; 
     
     if (!apiKey) {
         throw new Error("API Key មិនត្រូវបានកំណត់។ សូមកំណត់ COHERE_API_KEY នៅក្នុង Render Environment.");
@@ -117,20 +118,19 @@ async function generateMathResponse(contents) {
     
     try {
         const response = await cohere.chat({
-            model: MODEL_NAME,
+            model: MODEL_NAME, // ប្រើ Command A 
             message: userMessage, 
-            preamble: MATH_ASSISTANT_PREAMBLE, // ប្រើ Preamble ជំនួស System Instruction
-            temperature: 0.3, // កំណត់សីតុណ្ហភាពទាបសម្រាប់ការគណនា
-            max_tokens: 2048 // កំណត់ Max Tokens សម្រាប់ការបកស្រាយ
-            // history មិនត្រូវបានប្រើនៅទីនេះសម្រាប់ភាពសាមញ្ញ
+            preamble: MATH_ASSISTANT_PREAMBLE, 
+            temperature: 0.3, 
+            max_tokens: 2048 
         });
 
         // Cohere ឆ្លើយតបជាមួយ response.text
         return response.text; 
 
     } catch (error) {
-        if (error.statusCode === 429) { // HTTP 429: Too Many Requests
-            throw new Error("COHERE_QUOTA_EXCEEDED"); // ⭐ កែ Quota Error ⭐
+        if (error.statusCode === 429) { 
+            throw new Error("COHERE_QUOTA_EXCEEDED"); 
         }
         throw new Error(`Cohere API Error: ${error.message}`);
     }
@@ -203,7 +203,7 @@ app.post('/api/solve-integral', solverLimiter, async (req, res) => {
         try {
             resultText = await generateMathResponse(contents);
         } catch (apiError) {
-             if (apiError.message === "COHERE_QUOTA_EXCEEDED") { // ⭐ ប្រើ Cohere Quota Error ⭐
+             if (apiError.message === "COHERE_QUOTA_EXCEEDED") { 
                 return res.status(429).json({ error: "Daily Quota Exceeded. Please try again tomorrow." });
             }
             throw apiError;
@@ -273,7 +273,6 @@ app.get('/api/daily-stats', async (req, res) => {
 app.post('/api/chat', async (req, res) => {
     try {
         const { message, history } = req.body;
-        // សម្រាប់ភាពសាមញ្ញនៃ Chat Call យើងប្រើតែ message បច្ចុប្បន្នប៉ុណ្ណោះ
         const contents = [{ role: 'user', parts: [{ text: message }] }]; 
         const resultText = await generateMathResponse(contents);
         if (!resultText) return res.status(500).json({ error: "AI មិនបានផ្តល់ខ្លឹមសារទេ។" });
@@ -289,7 +288,8 @@ app.post('/api/chat', async (req, res) => {
 // ==================================================================================
 async function startServer() {
     console.log("----------------------------------------------------------------");
-    console.log("🚀 STARTING INTEGRAL CALCULATOR BACKEND (COHERE COMMAND R+)...");
+    // ⭐⭐⭐ UPDATED: បង្ហាញ Command A ⭐⭐⭐
+    console.log(`🚀 STARTING INTEGRAL CALCULATOR BACKEND (COHERE ${MODEL_NAME.toUpperCase()})...`);
     console.log("----------------------------------------------------------------");
 
     const isDbConnected = await connectToDatabase();
