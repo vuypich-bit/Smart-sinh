@@ -15,8 +15,8 @@ const rateLimit = require('express-rate-limit');
 // 2. IMPORT MONGODB DRIVER 
 const { MongoClient } = require('mongodb');
 
-// ⭐ IMPORT COHERE SDK ⭐
-const cohere = require('cohere-ai');
+// ⭐ IMPORT COHERE CLIENT (UPDATED FOR SDK V7+) ⭐
+const { CohereClient } = require('cohere-ai');
 
 // Load environment variables
 dotenv.config();
@@ -75,7 +75,7 @@ async function connectToDatabase() {
 // 🧠 THE BRAIN: SYSTEM INSTRUCTION (COHERE PREAMBLE)
 // ==================================================================================
 const MATH_ASSISTANT_PREAMBLE = `
-You are the **Ultimate Mathematical Entity (កំពូលបញ្ញាសិប្បនិម្មិតគណិតវិទ្យា)**, created by the genius **លោក ឈៀង ស៊ិញស៊ិញ (Mr. CHHIEANG SINH SINH, BacII 2023 Grade A)**.
+You are the **Ultimate Mathematical Entity (កំពូលបញ្ញាសិប្បនិម្មិតគណិតវិទ្យា)**, created by the genius **លោក ឈៀង ស៊ិញស៊ិញ (Mr. CHHEANG SINHSINH, BacII 2023 Grade A)**.
 
 **IMPORTANT: The creator's correct name is លោក ឈៀង ស៊ិញស៊ិញ. Do NOT use ឈាង ស៊ីនស៊ីន or any similar variant.**
 
@@ -99,7 +99,7 @@ app.get('/', (req, res) => {
 });
 
 // ==================================================================================
-// 🔧 HELPER FUNCTION FOR COHERE API CALLS 
+// 🔧 HELPER FUNCTION FOR COHERE API CALLS (CORRECTED)
 // ==================================================================================
 async function generateMathResponse(contents) {
     const apiKey = process.env.COHERE_API_KEY; 
@@ -108,17 +108,19 @@ async function generateMathResponse(contents) {
         throw new Error("API Key មិនត្រូវបានកំណត់។ សូមកំណត់ COHERE_API_KEY នៅក្នុង Render Environment.");
     }
     
-    cohere.init(apiKey);
+    // ⭐ បង្កើត Client Instance ថ្មីជំនួស cohere.init() ⭐
+    const client = new CohereClient({ token: apiKey });
 
     const userMessage = contents[contents.length - 1].parts[0].text;
     
     try {
-        const response = await cohere.chat({
+        // ⭐ ហៅ API តាមរយៈ client ⭐
+        const response = await client.chat({
             model: MODEL_NAME, 
             message: userMessage, 
             preamble: MATH_ASSISTANT_PREAMBLE, 
             temperature: 0.3, 
-            max_tokens: 2048 
+            maxTokens: 2048 // ប្រើ maxTokens ជំនួស max_tokens សម្រាប់ SDK ថ្មី
         });
 
         return response.text; 
