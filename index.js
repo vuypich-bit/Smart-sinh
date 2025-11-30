@@ -1,8 +1,8 @@
 // ==================================================================================
-// 🚀 INTEGRAL CALCULATOR AI - BACKEND SERVER (V38 - GPT-4o EDITION)
+// 🚀 INTEGRAL CALCULATOR AI - BACKEND SERVER (V40 - GPT-4 TURBO EDITION)
 // ==================================================================================
 // Developed by: លោក ឈៀង ស៊ិញស៊ិញ (BacII 2023 Grade A)
-// Powered by: OpenAI GPT-4o & MongoDB Atlas
+// Powered by: OpenAI GPT-4 Turbo & MongoDB Atlas
 // ==================================================================================
 
 const express = require('express');
@@ -38,8 +38,8 @@ app.use(cors({
 app.use(express.json());
 
 // --- Configuration ---
-// ✅ CHANGE: Switch Model to GPT-4o
-const MODEL_NAME = 'gpt-4o';
+// ✅ Model Set to GPT-4 Turbo (Highest Reasoning)
+const MODEL_NAME = 'gpt-4-turbo';
 
 // ⚠️ MONGODB CONNECTION SETUP
 const uri = "mongodb+srv://testuser:testpass@cluster0.chyfb9f.mongodb.net/?appName=Cluster0"; 
@@ -80,7 +80,7 @@ You are the **Ultimate Mathematical Entity (កំពូលបញ្ញាសិ
 `;
 
 // ----------------------------------------------------------------------------------
-// 👋 HEALTH CHECK ROUTE (UPDATED FOR GPT-4O)
+// 👋 HEALTH CHECK ROUTE (UPDATED FOR GPT-4 TURBO)
 // ----------------------------------------------------------------------------------
 app.get('/', (req, res) => {
     const dbStatus = cacheCollection ? "Connected ✅ (Caching Active)" : "Disconnected ❌ (Caching Disabled)";
@@ -129,7 +129,7 @@ async function generateMathResponse(geminiStyleContents) {
             'Authorization': `Bearer ${apiKey}` // Authentication
         },
         body: JSON.stringify({
-            model: MODEL_NAME, // Will use 'gpt-4o'
+            model: MODEL_NAME, // 'gpt-4-turbo'
             messages: messages,
             temperature: 0.7,
             max_tokens: 1500
@@ -285,7 +285,7 @@ app.get('/api/daily-stats', async (req, res) => {
         });
     } catch (error) {
         console.error("STATS ERROR:", error.message);
-        res.status(500).json({ error: "Failed to retrieve stats." });
+        res.status(500).json({ error: error.message });
     }
 });
 
@@ -295,7 +295,6 @@ app.get('/api/daily-stats', async (req, res) => {
 app.post('/api/chat', async (req, res) => {
     try {
         const { message, history } = req.body;
-        // Construct array. Helper function will convert 'model' to 'assistant' automatically.
         const contents = [ ...(history || []), { role: 'user', parts: [{ text: message }] } ];
         
         const resultText = await generateMathResponse(contents);
@@ -313,7 +312,7 @@ app.post('/api/chat', async (req, res) => {
 // ==================================================================================
 async function startServer() {
     console.log("----------------------------------------------------------------");
-    console.log(`🚀 STARTING INTEGRAL CALCULATOR BACKEND (V38 - ${MODEL_NAME})...`);
+    console.log(`🚀 STARTING INTEGRAL CALCULATOR BACKEND (V40 - ${MODEL_NAME})...`);
     console.log("----------------------------------------------------------------");
 
     const isDbConnected = await connectToDatabase();
