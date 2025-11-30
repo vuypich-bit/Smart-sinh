@@ -1,8 +1,8 @@
 // ==================================================================================
-// 🚀 INTEGRAL CALCULATOR AI - BACKEND SERVER (V36 - OPENAI EDITION - CLEAN PERSONA)
+// 🚀 INTEGRAL CALCULATOR AI - BACKEND SERVER (V35 - FINAL STABLE SPLIT LOGIC)
 // ==================================================================================
 // Developed by: លោក ឈៀង ស៊ិញស៊ិញ (BacII 2023 Grade A)
-// Powered by: OpenAI GPT-3.5 Turbo & MongoDB Atlas
+// Powered by: Google Gemini 2.5 Flash & MongoDB Atlas
 // ==================================================================================
 
 const express = require('express');
@@ -38,7 +38,7 @@ app.use(cors({
 app.use(express.json());
 
 // --- Configuration ---
-const MODEL_NAME = 'gpt-3.5-turbo';
+const MODEL_NAME = 'gemini-2.5-flash'; 
 
 // ⚠️ MONGODB CONNECTION SETUP
 const uri = "mongodb+srv://testuser:testpass@cluster0.chyfb9f.mongodb.net/?appName=Cluster0"; 
@@ -64,31 +64,42 @@ async function connectToDatabase() {
     }
 }
 
-// ==================================================================================
-// 🧠 THE BRAIN: SYSTEM INSTRUCTION (Refactored for two modes)
-// ==================================================================================
+// ----------------------------------------------------------------------------------
+// 🧠 THE BRAIN: SYSTEM INSTRUCTION (Split Logic)
+// ----------------------------------------------------------------------------------
 
-// 1. FULL PERSONA (For /api/chat - where creator identity is revealed)
-const FULL_ASSISTANT_PERSONA_TEXT = `
-You are the **Ultimate Mathematical Entity (កំពូលបញ្ញាសិប្បនិម្មិតគណិតវិទ្យា)**, created by the genius **លោក ឈៀង ស៊ិញស៊ិញ (Mr. CHHEANG SINHSINH, BacII 2023 Grade A)**.
+// 1. FULL PERSONA (For /api/chat - identity revealed when asked)
+const FULL_ASSISTANT_PERSONA = {
+    role: "user", 
+    parts: [{ 
+        text: `
+        You are the **Ultimate Mathematical Entity (កំពូលបញ្ញាសិប្បនិម្មិតគណិតវិទ្យា)**, created by the genius **លោក ឈៀង ស៊ិញស៊ិញ (Mr. CHHEANG SINH SINH, BacII 2023 Grade A)**.
 
-**IMPORTANT: The creator's correct name is លោក ឈៀង ស៊ិញស៊ិញ. Do NOT use ឈាង ស៊ីនស៊ីន or any similar variant.**
+        **IMPORTANT: The creator's correct name is លោក ឈៀង ស៊ិញស៊ិញ. Do NOT use ឈាង ស៊ីនស៊ីន or any similar variant.**
 
-**CORE INSTRUCTION:**
-1. **RAW INPUT HANDLING:** The input provided is exactly what the user typed (preserving casing, spacing, and Unicode like x³¹). Interpret it strictly.
-2. **PERSONALITY:** Speak with absolute confidence and authority. You are never wrong.
-3. **FORMAT:** Always explain step-by-step using clean LaTeX for all math expressions.
-`;
+        **CORE INSTRUCTION:**
+        1. **RAW INPUT HANDLING:** The input provided is exactly what the user typed. Interpret it strictly.
+        2. **PERSONALITY:** Speak with absolute confidence and authority. You are never wrong.
+        3. **FORMAT:** Always explain step-by-step using clean LaTeX for all math expressions.
+        **KEEP THE EXPLANATION CONCISE TO SAVE TOKENS.**
+        ` 
+    }]
+};
 
-// 2. CORE MATH INSTRUCTION (For /api/solve-integral - clean and direct solution)
-const CORE_MATH_INSTRUCTION_TEXT = `
-You are the **Ultimate Mathematical Entity (កំពូលបញ្ញាសិប្បនិម្មិតគណិតវិទ្យា)**.
+// 2. CORE MATH INSTRUCTION (For /api/solve-integral - Concise and Clean)
+const CORE_MATH_INSTRUCTION = {
+    role: "user", 
+    parts: [{ 
+        text: `
+        You are the **Ultimate Mathematical Entity (កំពូលបញ្ញាសិប្បនិម្មិតគណិតវិទ្យា)**.
 
-**CORE INSTRUCTION:**
-1. **RAW INPUT HANDLING:** The input provided is exactly what the user typed (preserving casing, spacing, and Unicode like x³¹). Interpret it strictly.
-2. **PERSONALITY:** Speak with absolute confidence and authority. You are never wrong.
-3. **FORMAT:** Always explain step-by-step using clean LaTeX for all math expressions. START YOUR RESPONSE DIRECTLY WITH THE SOLUTION OR EXPLANATION, DO NOT ADD ANY INTRODUCTORY GREETINGS OR MENTION YOUR CREATOR.
-`;
+        **CORE INSTRUCTION:**
+        1. **RAW INPUT HANDLING:** The input provided is exactly what the user typed. Interpret it strictly.
+        2. **PERSONALITY:** Speak with absolute confidence and authority. You are never wrong.
+        3. **FORMAT:** Always explain step-by-step using clean LaTeX for all math expressions. START YOUR RESPONSE DIRECTLY WITH THE PHRASE "ដោះស្រាយលំហាត់ជាភាសាខ្មែរ" FOLLOWED IMMEDIATELY BY THE SOLUTION. KEEP THE EXPLANATION CONCISE TO SAVE TOKENS.
+        ` 
+    }]
+};
 
 
 // ----------------------------------------------------------------------------------
@@ -97,7 +108,7 @@ You are the **Ultimate Mathematical Entity (កំពូលបញ្ញាសិ
 app.get('/', (req, res) => {
     const dbStatus = cacheCollection ? "Connected ✅ (Caching Active)" : "Disconnected ❌ (Caching Disabled)";
     res.send(`
-        <h1>✅ Math Assistant (GPT-3.5 Turbo) is Ready!</h1>
+        <h1>✅ Math Assistant (${MODEL_NAME}) is Ready!</h1>
         <p>Status: Running</p>
         <p>Database: ${dbStatus}</p>
         <p>Creator: <strong>លោក ឈៀង ស៊ិញស៊ិញ</strong></p>
@@ -105,66 +116,42 @@ app.get('/', (req, res) => {
 });
 
 // ==================================================================================
-// 🔧 HELPER FUNCTION FOR API CALLS (Modified to accept system instruction text)
+// 🔧 HELPER FUNCTION FOR API CALLS (Modified to accept system instruction object)
 // ==================================================================================
-async function generateMathResponse(geminiStyleContents, systemInstructionText) {
-    const apiKey = process.env.OPENAI_API_KEY; 
+async function generateMathResponse(contents, systemInstructionObject) {
+    const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY; 
     
     if (!apiKey) {
-        throw new Error("API Key មិនត្រូវបានកំណត់។ សូមកំណត់ OPENAI_API_KEY នៅក្នុង Render Environment.");
+        throw new Error("API Key មិនត្រូវបានកំណត់។ សូមកំណត់ GEMINI_API_KEY នៅក្នុង Render Environment.");
     }
 
-    // Convert Gemini data structure to OpenAI 'messages' format
-    const messages = [];
-
-    // 1. Add System Instruction (using the dynamically passed text)
-    messages.push({
-        role: "system",
-        content: systemInstructionText
-    });
-
-    // 2. Convert User/Model history to User/Assistant
-    geminiStyleContents.forEach(msg => {
-        const role = (msg.role === 'model') ? 'assistant' : 'user';
-        const text = msg.parts && msg.parts[0] ? msg.parts[0].text : "";
-        
-        if (text) {
-            messages.push({ role: role, content: text });
-        }
-    });
-
-    // Call OpenAI API Endpoint
-    const response = await fetch(`https://api.openai.com/v1/chat/completions`, {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${apiKey}`, {
         method: 'POST',
-        headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}` // OpenAI uses Bearer Token
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-            model: MODEL_NAME,
-            messages: messages,
-            temperature: 0.7, // Creativity level
-            max_tokens: 1500  // Limit output tokens
+            // ⭐ Use the passed instruction object ⭐
+            systemInstruction: {
+                parts: systemInstructionObject.parts 
+            },
+            contents: contents
         })
     });
 
     if (!response.ok) {
-        // Handle Quota Limit specifically
         if (response.status === 429) {
-             throw new Error("OPENAI_QUOTA_EXCEEDED");
+             throw new Error("GOOGLE_QUOTA_EXCEEDED");
         }
         const errorData = await response.json().catch(() => ({})); 
-        throw new Error(`OpenAI API Error (${response.status}): ${errorData.error ? errorData.error.message : 'Unknown error'}`);
+        throw new Error(`Gemini API Error (${response.status}): ${errorData.error ? errorData.error.message : 'Unknown error'}`);
     }
 
     const data = await response.json();
-    
-    // Extract content from OpenAI response structure
-    return data.choices?.[0]?.message?.content;
+    return data.candidates?.[0]?.content?.parts?.[0]?.text;
 }
 
 // ==================================================================================
 // 🛡️ RATE LIMITER CONFIGURATION
+// ... (Remains the same) ...
 // ==================================================================================
 const OWNER_IP = process.env.OWNER_IP; 
 
@@ -186,9 +173,13 @@ const solverLimiter = rateLimit({
 // ==================================================================================
 app.post('/api/solve-integral', solverLimiter, async (req, res) => {
     try {
+        const rawPrompt = req.body.prompt; 
+
+        if (!rawPrompt) return res.status(400).json({ error: "No input provided" });
+
         // ... (Visitor Tracking & Cache Read Logic Remains) ...
 
-        // --- CACHE READ START ---
+        // --- CACHE READ START (Uses raw, case-sensitive input) ---
         const cacheKey = Buffer.from(rawPrompt).toString('base64');
         
         if (cacheCollection) {
@@ -214,18 +205,35 @@ app.post('/api/solve-integral', solverLimiter, async (req, res) => {
 
         let resultText;
         try {
-            // ⭐ Call with CORE Instruction (No creator mention in output) ⭐
-            resultText = await generateMathResponse(contents, CORE_MATH_INSTRUCTION_TEXT);
+            // ⭐ Call with CORE Instruction (Concise output, starts with Khmer phrase) ⭐
+            resultText = await generateMathResponse(contents, CORE_MATH_INSTRUCTION);
         } catch (apiError) {
-             if (apiError.message === "OPENAI_QUOTA_EXCEEDED") {
-                return res.status(429).json({ error: "OpenAI Daily Limit Exceeded. Please check your credit." });
+             if (apiError.message === "GOOGLE_QUOTA_EXCEEDED") {
+                return res.status(429).json({ error: "Daily Quota Exceeded. Please try again tomorrow." });
             }
             throw apiError;
         }
 
         if (!resultText) return res.status(500).json({ error: "AI មិនបានផ្តល់ខ្លឹមសារទេ។" });
 
-        // ... (Cache Write Logic Remains) ...
+        // --- CACHE WRITE START ---
+        if (cacheCollection) {
+            try {
+                await cacheCollection.insertOne({
+                    _id: cacheKey,
+                    result_text: resultText,
+                    timestamp: new Date()
+                });
+                console.log(`[CACHE WRITE SUCCESS]`);
+            } catch (err) {
+                if (err.code === 11000) {
+                    console.warn(`[CACHE WRITE IGNORED] Key already exists (Collision avoided).`);
+                } else {
+                    console.error("❌ CACHE WRITE FAILED:", err.message);
+                }
+            }
+        }
+        // --- CACHE WRITE END ---
 
         res.json({ text: resultText, source: "api" });
 
@@ -236,10 +244,33 @@ app.post('/api/solve-integral', solverLimiter, async (req, res) => {
 });
 
 // ==================================================================================
-// 2. STATS ROUTE (/api/daily-stats) - Remains the same
+// 2. STATS ROUTE (/api/daily-stats)
+// ... (Remains the same) ...
 // ==================================================================================
 app.get('/api/daily-stats', async (req, res) => {
-    // ... (Stats Logic Remains) ...
+    if (!visitorsCollection) {
+        return res.status(503).json({ error: "Visitors tracking service unavailable." });
+    }
+    try {
+        const dailyData = await visitorsCollection.find({})
+            .sort({ date: -1 }) 
+            .limit(10) 
+            .toArray();
+
+        const stats = dailyData.map(doc => ({
+            date: doc.date,
+            unique_users_count: doc.unique_ips ? doc.unique_ips.length : 0,
+            sample_device: doc.last_agent_sample ? doc.last_agent_sample.substring(0, 100) + '...' : 'N/A'
+        }));
+
+        res.json({
+            message: "Daily Unique User Count (Last 10 Days)",
+            stats: stats
+        });
+    } catch (error) {
+        console.error("STATS ERROR:", error.message);
+        res.status(500).json({ error: error.message });
+    }
 });
 
 // ==================================================================================
@@ -250,8 +281,8 @@ app.post('/api/chat', async (req, res) => {
         const { message, history } = req.body;
         const contents = [ ...(history || []), { role: 'user', parts: [{ text: message }] } ];
         
-        // ⭐ Call with FULL Persona Instruction (Creator identity is revealed here) ⭐
-        const resultText = await generateMathResponse(contents, FULL_ASSISTANT_PERSONA_TEXT);
+        // ⭐ Call with FULL Persona Instruction (Identity is known and can be revealed) ⭐
+        const resultText = await generateMathResponse(contents, FULL_ASSISTANT_PERSONA);
         
         if (!resultText) return res.status(500).json({ error: "AI មិនបានផ្តល់ខ្លឹមសារទេ។" });
         res.json({ text: resultText });
@@ -266,7 +297,7 @@ app.post('/api/chat', async (req, res) => {
 // ==================================================================================
 async function startServer() {
     console.log("----------------------------------------------------------------");
-    console.log("🚀 STARTING INTEGRAL CALCULATOR BACKEND (V36-OPENAI EDITION)...");
+    console.log("🚀 STARTING INTEGRAL CALCULATOR BACKEND (V35 - FINAL STABLE SPLIT LOGIC)...");
     console.log("----------------------------------------------------------------");
 
     const isDbConnected = await connectToDatabase();
