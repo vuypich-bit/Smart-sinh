@@ -1,8 +1,8 @@
 // ==================================================================================
-// 🚀 INTEGRAL CALCULATOR AI - BACKEND SERVER (V37 - FINAL OPENAI EDITION)
+// 🚀 INTEGRAL CALCULATOR AI - BACKEND SERVER (V38 - GPT-4o EDITION)
 // ==================================================================================
 // Developed by: លោក ឈៀង ស៊ិញស៊ិញ (BacII 2023 Grade A)
-// Powered by: OpenAI GPT-3.5 Turbo & MongoDB Atlas
+// Powered by: OpenAI GPT-4o & MongoDB Atlas
 // ==================================================================================
 
 const express = require('express');
@@ -38,7 +38,8 @@ app.use(cors({
 app.use(express.json());
 
 // --- Configuration ---
-const MODEL_NAME = 'gpt-3.5-turbo'; // ✅ FINAL MODEL SET TO GPT-3.5 TURBO
+// ✅ CHANGE: Switch Model to GPT-4o
+const MODEL_NAME = 'gpt-4o';
 
 // ⚠️ MONGODB CONNECTION SETUP
 const uri = "mongodb+srv://testuser:testpass@cluster0.chyfb9f.mongodb.net/?appName=Cluster0"; 
@@ -65,7 +66,7 @@ async function connectToDatabase() {
 }
 
 // ==================================================================================
-// 🧠 THE BRAIN: SYSTEM INSTRUCTION (OPENAI FORMAT)
+// 🧠 THE BRAIN: SYSTEM INSTRUCTION 
 // ==================================================================================
 const MATH_ASSISTANT_PERSONA_TEXT = `
 You are the **Ultimate Mathematical Entity (កំពូលបញ្ញាសិប្បនិម្មិតគណិតវិទ្យា)**, created by the genius **លោក ឈៀង ស៊ិញស៊ិញ (Mr. CHHIEANG SINH SINH, BacII 2023 Grade A)**.
@@ -79,7 +80,7 @@ You are the **Ultimate Mathematical Entity (កំពូលបញ្ញាសិ
 `;
 
 // ----------------------------------------------------------------------------------
-// 👋 HEALTH CHECK ROUTE (UPDATED FOR GPT-3.5 TURBO)
+// 👋 HEALTH CHECK ROUTE (UPDATED FOR GPT-4O)
 // ----------------------------------------------------------------------------------
 app.get('/', (req, res) => {
     const dbStatus = cacheCollection ? "Connected ✅ (Caching Active)" : "Disconnected ❌ (Caching Disabled)";
@@ -92,7 +93,7 @@ app.get('/', (req, res) => {
 });
 
 // ==================================================================================
-// 🔧 HELPER FUNCTION FOR API CALLS (FINAL ROBUST OPENAI VERSION)
+// 🔧 HELPER FUNCTION FOR API CALLS (ROBUST OPENAI VERSION)
 // ==================================================================================
 async function generateMathResponse(geminiStyleContents) {
     // 1. Get API Key
@@ -111,7 +112,7 @@ async function generateMathResponse(geminiStyleContents) {
         content: MATH_ASSISTANT_PERSONA_TEXT
     });
 
-    // Convert history (where 'model' becomes 'assistant')
+    // Convert history
     geminiStyleContents.forEach(msg => {
         const role = (msg.role === 'model') ? 'assistant' : 'user';
         const text = msg.parts && msg.parts[0] ? msg.parts[0].text : "";
@@ -128,7 +129,7 @@ async function generateMathResponse(geminiStyleContents) {
             'Authorization': `Bearer ${apiKey}` // Authentication
         },
         body: JSON.stringify({
-            model: MODEL_NAME,
+            model: MODEL_NAME, // Will use 'gpt-4o'
             messages: messages,
             temperature: 0.7,
             max_tokens: 1500
@@ -143,14 +144,14 @@ async function generateMathResponse(geminiStyleContents) {
             throw new Error(`OpenAI API Error (401 Unauthorized): Please check your OPENAI_API_KEY value.`);
         }
         if (status === 400) {
-            // Bad Request, often due to invalid prompt structure or model limits
-            throw new Error(`OpenAI API Error (400 Bad Request): Input data structure or complexity issue.`);
+            // Bad request, often due to invalid prompt structure or model limits
+            const errorText = await response.text(); 
+            throw new Error(`OpenAI API Error (400 Bad Request): Check data structure. Response: ${errorText}`);
         }
         if (status === 429) {
              throw new Error("OPENAI_QUOTA_EXCEEDED. (Check credit balance/Daily limit)");
         }
         
-        // General error for other failures
         throw new Error(`OpenAI Server Error: Status ${status} (Likely Billing or Server issue).`);
     }
 
@@ -226,7 +227,7 @@ app.post('/api/solve-integral', solverLimiter, async (req, res) => {
         try {
             resultText = await generateMathResponse(contents);
         } catch (apiError) {
-             // Use the specific error message from the helper function
+             // Return the specific error message from the helper function
             return res.status(500).json({ error: apiError.message });
         }
 
@@ -312,7 +313,7 @@ app.post('/api/chat', async (req, res) => {
 // ==================================================================================
 async function startServer() {
     console.log("----------------------------------------------------------------");
-    console.log(`🚀 STARTING INTEGRAL CALCULATOR BACKEND (V37 - ${MODEL_NAME})...`);
+    console.log(`🚀 STARTING INTEGRAL CALCULATOR BACKEND (V38 - ${MODEL_NAME})...`);
     console.log("----------------------------------------------------------------");
 
     const isDbConnected = await connectToDatabase();
